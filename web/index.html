@@ -370,7 +370,7 @@ function pintarTabs() {
   if (!tabsRol().some(([k]) => k === st.tab)) st.tab = 'tablero';
   $('#tabs').innerHTML = tabsRol().map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
 }
-$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; st.tab = b.dataset.t; st.docSel = null; render(); });
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; st.tab = b.dataset.t; st.docSel = null; render(); if (window.__visita) window.__visita(st.tab); });
 $('#selAnio').addEventListener('change', async e => { st.anio = Number(e.target.value); await cargarAnio(st.anio); render(); });
 $('#selPer').addEventListener('change', e => { st.periodo = e.target.value; render(); });
 $('#verComo').addEventListener('change', e => { const v = e.target.value; st.yo = v === '' ? { rol: 'admin', nombre: 'Vista previa', email: '' } : { ...st.usuarios[+v] }; st.docSel = null; st.tab = 'tablero'; render(); toast('Viendo como ' + (v === '' ? 'administrador' : st.usuarios[+v].nombre)); });
@@ -721,6 +721,8 @@ function wire() {
     if (ry.status === 401) { location.replace('https://sabicentec.com/ingresar?volver=' + encodeURIComponent(location.href)); return; }
     if (ry.status === 403) { const j = await ry.json().catch(() => ({})); st.sinAcceso = j.error || 'Sin autorización.'; render(); return; }
     st.yo = await ry.json();
+    window.__visita = t => { try { fetch('https://sabicentec.com/api/sabi/visita', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ app: 'planeacion-2027', ruta: '/' + t }) }); } catch (e) {} };
+    window.__visita('tablero');
     const a = await (await fetch('/api/anios')).json();
     st.anios = a.map(x => x.anio); st.cerrados = a.filter(x => x.cerrado).map(x => x.anio);
     st.anio = st.anios.includes(new Date().getFullYear()) ? new Date().getFullYear() : st.anios.at(-1);

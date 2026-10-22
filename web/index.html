@@ -374,7 +374,7 @@ $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]
 $('#selAnio').addEventListener('change', async e => { st.anio = Number(e.target.value); await cargarAnio(st.anio); render(); });
 $('#selPer').addEventListener('change', e => { st.periodo = e.target.value; render(); });
 $('#verComo').addEventListener('change', e => { const v = e.target.value; st.yo = v === '' ? { rol: 'admin', nombre: 'Vista previa', email: '' } : { ...st.usuarios[+v] }; st.docSel = null; st.tab = 'tablero'; render(); toast('Viendo como ' + (v === '' ? 'administrador' : st.usuarios[+v].nombre)); });
-$('#salir').addEventListener('click', async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); });
+$('#salir').addEventListener('click', async () => { try { await fetch('https://sabicentec.com/api/sabi/salir', { method: 'POST', credentials: 'include' }); } catch (e) {} location.href = 'https://sabicentec.com'; });
 
 const pill = s => `<span class="pill ${s.color}">${esc(s.nivel.split(' — ')[0])}</span>`;
 const NOMBRES = Object.fromEntries((DATOS.indicadores?.componentes || []).map(c => [c.id, `${c.codigo} ${c.nombre}`]));
@@ -546,6 +546,10 @@ function vSugerir() {
 }
 
 function vUsuarios() {
+  if (st.api) return `<section class="card"><h1>Usuarios y permisos</h1>
+  <p>Las personas, sus cargos, cursos, áreas, dirección de grupo y aplicaciones autorizadas se gestionan en un solo lugar para todas las aplicaciones SABI.</p>
+  <p class="small muted">Docentes ingresan con área + nombre completo + 4 últimos dígitos de la cédula. Directivos con cargo + nombre + cédula. Administradores web con nombre + cédula seguida de &amp;.</p>
+  <div class="row"><a class="btn" href="https://sabicentec.com/usuarios">Abrir el directorio de usuarios SABI</a></div></section>`;
   const u = st.usuarios || [];
   const ed = st.uEdit || { email: '', nombre: '', cargo: '', rol: 'docente', asignaciones: [], direccion: [], activo: 1 };
   const tiene = (g, a) => (ed.asignaciones || []).some(x => x.grado === g && x.area === a);
@@ -657,6 +661,7 @@ function vDatos() {
 }
 
 function render() {
+  if (st.sinAcceso) { $('#tabs').innerHTML = ''; $('#main').innerHTML = `<section class="card"><h1>Sin autorización</h1><p>${esc(st.sinAcceso)}</p><p><a href="https://sabicentec.com">Volver al portal</a></p></section>`; return; }
   if (st.pantalla === 'login' || st.pantalla === 'clave') {
     $('#tabs').innerHTML = ''; document.querySelectorAll('.top-in > label').forEach(l => l.hidden = true);
     $('#main').innerHTML = st.pantalla === 'login' ? vLogin() : vCambioClave(); wireAcceso(); return;
@@ -713,10 +718,9 @@ function wire() {
   if (st.api) {
     st.demo = false;
     const ry = await fetch('/api/yo', { cache: 'no-store' });
-    if (ry.status === 401) { st.pantalla = 'login'; render(); return; }
+    if (ry.status === 401) { location.replace('https://sabicentec.com/ingresar?volver=' + encodeURIComponent(location.href)); return; }
+    if (ry.status === 403) { const j = await ry.json().catch(() => ({})); st.sinAcceso = j.error || 'Sin autorización.'; render(); return; }
     st.yo = await ry.json();
-    if (st.yo.debe_cambiar) { st.pantalla = 'clave'; render(); return; }
-    if (esAdmin()) { const ru = await fetch('/api/usuarios'); if (ru.ok) st.usuarios = (await ru.json()).usuarios; }
     const a = await (await fetch('/api/anios')).json();
     st.anios = a.map(x => x.anio); st.cerrados = a.filter(x => x.cerrado).map(x => x.anio);
     st.anio = st.anios.includes(new Date().getFullYear()) ? new Date().getFullYear() : st.anios.at(-1);

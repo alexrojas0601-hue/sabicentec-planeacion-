@@ -1,33 +1,36 @@
 import { calcularTodo, calcularDocente, alertas as calcAlertas, VERSION } from './indicadores.js';
-import { sha256hex, aleatorio, hashClave, verificarClave, claveValida, claveTemporal, leerCookie, cookieSesion, cookieBorrar, SESION_HORAS, MAX_FALLOS, BLOQUEO_MIN } from './auth.js';
+import { verificar, leerCookie } from './sso.js';
 // API del Sistema de Planeación CENTEC (Cloudflare Worker + D1).
-// ROLES (los asigna un administrador en la pestaña «Usuarios»):
-//   admin     → todo, incluida la gestión de usuarios y permisos (coordinación académica, vicerrectoría,
-//               secretaría académica y rectoría). Los primeros administradores salen del secreto ADMINS.
-//   directivo → ve y registra todo el año escolar; no gestiona usuarios (equipo directivo, ~8 personas).
-//   docente   → solo sus registros, en las combinaciones curso + área asignadas; si es director de grupo,
-//               consulta (solo lectura) todo lo de su curso.
-//   agente    → GitHub Actions con el secreto AGENTES_TOKEN: solo lectura para auditorías y cierres.
+// INGRESO ÚNICO SABI: la persona entra en sabicentec.com/ingresar (cookie sabi_sso firmada con SSO_SECRET).
+// Aquí se verifica la firma y se consulta el directorio central (base sabicentec-usuarios, binding USUARIOS)
+// para conocer su rol, cursos, áreas y dirección de grupo. Los usuarios se gestionan en sabicentec.com/usuarios.
+// ROLES en Planeación:
+//   admin     → administradores web y gestores (rectoría, vicerrectoría, coordinación académica, secretaría académica)
+//   directivo → resto del equipo directivo: ve y registra todo el año escolar
+//   docente   → solo sus combinaciones curso + área; si es director de grupo, consulta todo su curso
+//   agente    → GitHub Actions con AGENTES_TOKEN: solo lectura
+const APP_ID = 'planeacion-2027';
 const J = (d, s = 200, h = {}) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', ...h } });
 const TIPOS = ['planeador','ejecucion','cuaderno','observacion','resultado','piar','transversal','lectura','informe','encuesta'];
 // Cuadernos, observación de aula y encuesta estudiantil los registra solo un directivo: nadie se califica a sí mismo.
 const TIPOS_DOCENTE = ['planeador','ejecucion','resultado','piar','transversal','lectura','informe'];
 const PROHIBIDO = [/\b\d{8,11}\b/, /@[a-z0-9.-]+\.[a-z]{2,}/i, /\b3\d{9}\b/];
 const parse = r => ({ ...r, payload: JSON.parse(r.payload) });
-const sha256 = sha256hex;
-const listaAdmins = env => (env.ADMINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+const CARGOS_GESTORES = ['rectoria', 'vicerrectoria', 'coordinacion academica', 'secretaria academica'];
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+async function sha256(t) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, '0')).join(''); }
 
-function perfilDe(u) {
-  return { rol: u.rol, email: u.email, nombre: u.nombre, cargo: u.cargo || '', debe_cambiar: !!u.debe_cambiar,
-    asignaciones: JSON.parse(u.asignaciones || '[]'), direccion: JSON.parse(u.direccion || '[]') };
-}
 async function perfil(req, env) {
+  if (!env.SSO_SECRET || env.SSO_SECRET.length < 32) return null; // falla cerrado si falta el secreto
   if (env.AGENTES_TOKEN && req.headers.get('x-agentes-token') === env.AGENTES_TOKEN) return { rol: 'agente', nombre: 'Agentes (GitHub)', email: 'agentes' };
-  const sid = leerCookie(req, 'sid');
-  if (!sid || sid.length !== 64) return null;
-  const s = await env.DB.prepare(`SELECT u.* FROM sesiones s JOIN usuarios u ON u.email = s.email
-    WHERE s.token_hash = ? AND s.expira > datetime('now') AND u.activo = 1`).bind(await sha256(sid)).first();
-  return s ? perfilDe(s) : null;
+  const t = await verificar(leerCookie(req, 'sabi_sso'), env.SSO_SECRET);
+  if (!t) return null;
+  const p = await env.USUARIOS.prepare('SELECT * FROM sabi_personas WHERE id=? AND activo=1').bind(t.id).first();
+  if (!p || p.version !== t.ver) return null;
+  const apps = JSON.parse(p.apps || '[]');
+  if (!apps.includes('*') && !apps.includes(APP_ID)) return { sinApp: true, nombre: p.nombre };
+  const rol = p.tipo === 'admin' || (p.tipo === 'directivo' && CARGOS_GESTORES.includes(norm(p.cargo))) ? 'admin' : p.tipo === 'directivo' ? 'directivo' : 'docente';
+  return { id: p.id, email: 'sabi:' + p.id, rol, nombre: p.nombre, cargo: p.cargo || '', asignaciones: JSON.parse(p.asignaciones || '[]'), direccion: JSON.parse(p.direccion || '[]') };
 }
 const esAdmin = pf => pf?.rol === 'admin';
 const esDir = pf => pf?.rol === 'admin' || pf?.rol === 'directivo';
@@ -35,50 +38,7 @@ const asignado = (pf, grado, area) => (pf.asignaciones || []).some(a => a.grado 
 const dirige = (pf, grado) => (pf.direccion || []).includes(grado);
 async function regsAnio(env, anio) { return (await env.DB.prepare('SELECT * FROM registros WHERE anio=? ORDER BY creado').bind(anio).all()).results.map(parse); }
 async function bitacora(env, anio, accion, detalle, pf) {
-  await env.DB.prepare('INSERT INTO bitacora(anio, accion, detalle, usuario) VALUES (?,?,?,?)').bind(anio, accion, detalle, pf.email).run();
-}
-async function abrirSesion(env, email) {
-  const token = aleatorio(32);
-  await env.DB.batch([
-    env.DB.prepare(`DELETE FROM sesiones WHERE expira <= datetime('now')`),
-    env.DB.prepare(`INSERT INTO sesiones(token_hash, email, expira) VALUES (?, ?, datetime('now', '+${SESION_HORAS} hours'))`).bind(await sha256(token), email),
-    env.DB.prepare(`UPDATE usuarios SET fallos = 0, bloqueado_hasta = NULL, ultimo_ingreso = datetime('now') WHERE email = ?`).bind(email),
-  ]);
-  return token;
-}
-
-// Inicio y cierre de sesión (antes de exigir perfil)
-async function rutasSesion(p, req, env) {
-  if (p === '/api/login' && req.method === 'POST') {
-    const { email: e, clave } = await req.json().catch(() => ({}));
-    const email = String(e || '').trim().toLowerCase();
-    const malo = J({ error: 'Correo o clave incorrectos.' }, 401);
-    if (!email || !clave) return malo;
-    let u = await env.DB.prepare('SELECT * FROM usuarios WHERE email = ?').bind(email).first();
-    if (u?.bloqueado_hasta && u.bloqueado_hasta > new Date().toISOString().slice(0, 19).replace('T', ' '))
-      return J({ error: `Cuenta bloqueada por intentos fallidos. Intente de nuevo en ${BLOQUEO_MIN} minutos o pida a coordinación que restablezca su clave.` }, 429);
-    // Primer ingreso de un administrador definido en ADMINS, con la clave inicial (secreto CLAVE_INICIAL)
-    if (!u?.clave_hash && listaAdmins(env).includes(email) && env.CLAVE_INICIAL && env.CLAVE_INICIAL.length >= 10 && clave === env.CLAVE_INICIAL) {
-      await env.DB.prepare(`INSERT INTO usuarios(email, nombre, cargo, rol, asignaciones, direccion, activo, debe_cambiar)
-        VALUES (?, ?, 'Administrador', 'admin', '[]', '[]', 1, 1)
-        ON CONFLICT(email) DO UPDATE SET rol='admin', activo=1, debe_cambiar=1`).bind(email, email).run();
-      return J({ ok: true, debe_cambiar: true }, 200, { 'set-cookie': cookieSesion(await abrirSesion(env, email)) });
-    }
-    if (!u || !u.activo || !(await verificarClave(clave, u.clave_hash, u.clave_sal))) {
-      if (u) {
-        const f = (u.fallos || 0) + 1;
-        await env.DB.prepare(`UPDATE usuarios SET fallos = ?, bloqueado_hasta = CASE WHEN ? >= ${MAX_FALLOS} THEN datetime('now', '+${BLOQUEO_MIN} minutes') ELSE NULL END WHERE email = ?`).bind(f, f, email).run();
-      }
-      return malo;
-    }
-    return J({ ok: true, debe_cambiar: !!u.debe_cambiar }, 200, { 'set-cookie': cookieSesion(await abrirSesion(env, email)) });
-  }
-  if (p === '/api/logout' && req.method === 'POST') {
-    const sid = leerCookie(req, 'sid');
-    if (sid) await env.DB.prepare('DELETE FROM sesiones WHERE token_hash = ?').bind(await sha256(sid)).run();
-    return J({ ok: true }, 200, { 'set-cookie': cookieBorrar });
-  }
-  return null;
+  await env.DB.prepare('INSERT INTO bitacora(anio, accion, detalle, usuario) VALUES (?,?,?,?)').bind(anio, accion, detalle, pf.nombre || pf.email).run();
 }
 
 export default {
@@ -88,32 +48,20 @@ export default {
     const anioQ = () => Number(url.searchParams.get('anio') || new Date().getFullYear());
     try {
       if (p === '/api/health') return J({ ok: true, ts: new Date().toISOString() });
-      if (p.startsWith('/descargas/')) { // documentos solo para usuarios con sesión
+      if (p.startsWith('/descargas/')) { // documentos solo para personas con ingreso SABI
         const q = await perfil(req, env);
-        if (!q || q.debe_cambiar) return new Response('Inicie sesión en planeacion.sabicentec.com para descargar.', { status: 403 });
+        if (!q || q.sinApp) return Response.redirect('https://sabicentec.com/ingresar?volver=' + encodeURIComponent(req.url), 302);
         return env.ASSETS.fetch(req);
       }
       if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
       if (req.method === 'POST' && req.headers.get('origin') && new URL(req.headers.get('origin')).host !== url.host)
         return J({ error: 'Origen no permitido' }, 403);
-
-      const rs = await rutasSesion(p, req, env); if (rs) return rs;
       const pf = await perfil(req, env);
-      if (!pf) return J({ error: 'Inicie sesión.', login: true }, 401);
+      if (!pf) return J({ error: 'Ingrese por sabicentec.com', ingresar: 'https://sabicentec.com/ingresar' }, 401);
+      if (pf.sinApp) return J({ error: `${pf.nombre}, Planeación no está habilitada para su usuario. Pídala a coordinación académica.`, sinApp: true }, 403);
       if (p === '/api/yo') return J(pf);
-      if (p === '/api/clave' && req.method === 'POST') {
-        const { actual, nueva } = await req.json().catch(() => ({}));
-        const u = await env.DB.prepare('SELECT * FROM usuarios WHERE email=?').bind(pf.email).first();
-        if (!pf.debe_cambiar && !(await verificarClave(actual || '', u.clave_hash, u.clave_sal))) return J({ error: 'La clave actual no es correcta.' }, 400);
-        if (!claveValida(nueva)) return J({ error: 'La clave nueva debe tener al menos 10 caracteres, con letras y números.' }, 400);
-        const h = await hashClave(nueva);
-        await env.DB.prepare('UPDATE usuarios SET clave_hash=?, clave_sal=?, debe_cambiar=0 WHERE email=?').bind(h.hash, h.sal, pf.email).run();
-        await bitacora(env, new Date().getFullYear(), 'cambio_clave', '', pf);
-        return J({ ok: true });
-      }
-      if (pf.debe_cambiar) return J({ error: 'Debe crear su clave personal antes de continuar.', debe_cambiar: true }, 403);
       const soloDir = () => esDir(pf) ? null : J({ error: 'Solo el equipo directivo puede hacer esto.' }, 403);
-      const soloAdmin = () => esAdmin(pf) ? null : J({ error: 'Solo coordinación académica, vicerrectoría, secretaría académica o rectoría pueden gestionar usuarios.' }, 403);
+      const soloAdmin = () => esAdmin(pf) ? null : J({ error: 'Solo rectoría, vicerrectoría, coordinación académica, secretaría académica o administradores web pueden hacer esto.' }, 403);
       const lectura = () => (esDir(pf) || pf.rol === 'agente') ? null : J({ error: 'Sin permiso' }, 403);
 
       // ---------- Años ----------
@@ -212,45 +160,8 @@ export default {
         return J({ ok: true });
       }
 
-      // ---------- Usuarios (solo administradores) ----------
-      if (p === '/api/usuarios' && req.method === 'GET') {
-        const no = soloAdmin(); if (no) return no;
-        const r = (await env.DB.prepare('SELECT email, nombre, cargo, rol, asignaciones, direccion, activo, debe_cambiar, ultimo_ingreso FROM usuarios ORDER BY rol, nombre').all()).results;
-        return J({ usuarios: r.map(u => ({ ...u, asignaciones: JSON.parse(u.asignaciones || '[]'), direccion: JSON.parse(u.direccion || '[]') })) });
-      }
-      if (p === '/api/usuarios' && req.method === 'POST') {
-        const no = soloAdmin(); if (no) return no;
-        const u = await req.json();
-        const email = String(u.email || '').trim().toLowerCase();
-        if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email) || !u.nombre) return J({ error: 'Correo y nombre son obligatorios' }, 400);
-        const rol = ['admin', 'directivo', 'docente'].includes(u.rol) ? u.rol : 'docente';
-        if (email === pf.email && rol !== 'admin') return J({ error: 'No puede quitarse a sí mismo el rol de administrador.' }, 400);
-        const previo = await env.DB.prepare('SELECT email, clave_hash FROM usuarios WHERE email=?').bind(email).first();
-        await env.DB.prepare(`INSERT INTO usuarios(email, nombre, cargo, rol, asignaciones, direccion, activo, debe_cambiar) VALUES (?,?,?,?,?,?,?,1)
-          ON CONFLICT(email) DO UPDATE SET nombre=excluded.nombre, cargo=excluded.cargo, rol=excluded.rol, asignaciones=excluded.asignaciones, direccion=excluded.direccion, activo=excluded.activo`)
-          .bind(email, u.nombre.trim(), u.cargo || '', rol, JSON.stringify(rol === 'docente' ? (u.asignaciones || []) : []), JSON.stringify(rol === 'docente' ? (u.direccion || []) : []), u.activo === 0 ? 0 : 1).run();
-        if (u.activo === 0) await env.DB.prepare('DELETE FROM sesiones WHERE email=?').bind(email).run();
-        let temporal = null;
-        if (!previo?.clave_hash) { // cuenta nueva: clave temporal que el administrador entrega en persona
-          temporal = claveTemporal(); const h = await hashClave(temporal);
-          await env.DB.prepare('UPDATE usuarios SET clave_hash=?, clave_sal=?, debe_cambiar=1 WHERE email=?').bind(h.hash, h.sal, email).run();
-        }
-        await bitacora(env, new Date().getFullYear(), 'usuario', `${email} · ${rol} · ${u.activo === 0 ? 'inactivo' : 'activo'}`, pf);
-        return J({ ok: true, clave_temporal: temporal });
-      }
-      if (p === '/api/usuarios/restablecer' && req.method === 'POST') {
-        const no = soloAdmin(); if (no) return no;
-        const { email } = await req.json();
-        const u = await env.DB.prepare('SELECT email FROM usuarios WHERE email=?').bind(String(email || '').toLowerCase()).first();
-        if (!u) return J({ error: 'Usuario no encontrado' }, 404);
-        const temporal = claveTemporal(); const h = await hashClave(temporal);
-        await env.DB.batch([
-          env.DB.prepare('UPDATE usuarios SET clave_hash=?, clave_sal=?, debe_cambiar=1, fallos=0, bloqueado_hasta=NULL WHERE email=?').bind(h.hash, h.sal, u.email),
-          env.DB.prepare('DELETE FROM sesiones WHERE email=?').bind(u.email),
-        ]);
-        await bitacora(env, new Date().getFullYear(), 'restablecer_clave', u.email, pf);
-        return J({ ok: true, clave_temporal: temporal });
-      }
+      // ---------- Usuarios: se gestionan en el directorio central ----------
+      if (p.startsWith('/api/usuarios')) return J({ error: 'Los usuarios se gestionan en sabicentec.com/usuarios', url: 'https://sabicentec.com/usuarios' }, 410);
 
       // ---------- Sugerencias (todos) ----------
       if (p === '/api/sugerencias' && req.method === 'POST') {

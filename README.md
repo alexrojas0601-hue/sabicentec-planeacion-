@@ -96,9 +96,9 @@ Abra `web/index.html` en el navegador: funciona en modo local con datos de ejemp
 | **Docente** (~70) | Solo las combinaciones curso + área que le asignen. Si es director de grupo, consulta todo lo de su curso (solo lectura). Registra planeador, ejecución, pre/post, PIAR y proyectos; no registra cuadernos, observación ni encuesta. |
 | **Agentes (GitHub)** | Solo lectura con `AGENTES_TOKEN`. |
 
-**Ingreso:** correo + clave personal (inicio de sesión propio, sin costo por usuario). Cada cuenta nueva recibe una clave temporal que el administrador entrega en persona; en el primer ingreso la persona crea su clave. Claves con hash PBKDF2, bloqueo tras 5 intentos fallidos, sesiones de 12 horas.
+**Ingreso:** único para todo SABI, en https://sabicentec.com/ingresar. Docentes: área + nombre completo + 4 últimos dígitos de la cédula. Directivos: cargo + nombre + cédula. Administradores web: nombre + cédula seguida de &. Las cédulas se guardan solo como huella cifrada. Personas y permisos: https://sabicentec.com/usuarios.
 
-**Arranque:** en Cloudflare → Worker `sabicentec-planeacion` → Settings → Variables and secrets, crear los secretos `ADMINS` (correos de los primeros administradores, separados por coma) y `CLAVE_INICIAL` (mínimo 10 caracteres). Cada administrador entra una vez con esa clave y crea la suya.
+**Secretos de este Worker:** `SSO_SECRET` (el mismo del portal) y `AGENTES_TOKEN`.
 
 ## Privacidad
 

@@ -5,6 +5,11 @@ Toda mejora cita su origen (issue, auditoría, lección de cierre o norma) y có
 
 ## Sin publicar
 
+## [1.4.0] — 2026-10-22
+### Cambiado
+- Ingreso único SABI: Planeación ya no tiene inicio de sesión propio; verifica la cookie firmada de sabicentec.com y lee rol, cursos, áreas y dirección de grupo del directorio central (base sabicentec-usuarios).
+- Usuarios y permisos se gestionan en sabicentec.com/usuarios.
+
 ## [1.3.0] — 2026-10-22
 ### Cambiado
 - Inicio de sesión propio (correo + clave) en lugar de Cloudflare Access, que es gratis solo hasta 50 usuarios (el colegio tiene ~78).

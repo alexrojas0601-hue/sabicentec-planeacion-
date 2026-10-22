@@ -18,13 +18,16 @@ database_name = "centec-planeacion"
 database_id = "03a8ddb5-9dc6-46a2-8e3e-6a6e966906d2"   # creada el 21-oct-2026
 migrations_dir = "worker/migrations"
 
-# ACCESO (secretos, nunca en el repositorio; se cargan en Cloudflare → Settings → Variables and secrets):
-#   ADMINS        → correos de los primeros administradores, separados por coma
-#                   (rectoría, coordinación académica, vicerrectoría, secretaría académica)
-#   CLAVE_INICIAL → clave de un solo uso (mín. 10 caracteres) para el primer ingreso de esos administradores;
-#                   al entrar, el sistema les obliga a crear su clave personal. Luego se puede borrar.
+# Directorio central del ingreso único SABI (mismo que usa sabicentec.com)
+[[d1_databases]]
+binding = "USUARIOS"
+database_name = "sabicentec-usuarios"
+database_id = "8b98ac35-e353-4a59-a8ef-fa10ee4d606d"
+
+# SECRETOS (Cloudflare → Workers → sabicentec-planeacion → Settings → Variables and secrets):
+#   SSO_SECRET    → el MISMO valor que en sabicentec-portal (ingreso único SABI)
 #   AGENTES_TOKEN → clave larga aleatoria; la usan los GitHub Actions (solo lectura)
-# El resto del equipo (directivos y docentes) lo crean los administradores en la pestaña «Usuarios».
+# Las personas y sus permisos se gestionan en https://sabicentec.com/usuarios
 
 # Automatización: todos los días 6:00 a. m. Colombia (11:00 UTC)
 [triggers]

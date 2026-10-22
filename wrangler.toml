@@ -1,6 +1,9 @@
 # Sistema de Planeación CENTEC — Cloudflare Worker + static assets + D1
 name = "centec-planeacion"
 main = "worker/src/index.js"
+
+# Subdominio dentro del ecosistema SABI (la zona sabicentec.com ya está en esta cuenta de Cloudflare)
+routes = [{ pattern = "planeacion.sabicentec.com", custom_domain = true }]
 compatibility_date = "2026-01-01"
 
 [assets]
@@ -12,7 +15,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "centec-planeacion"
-database_id = "REEMPLAZAR_CON_ID_DE_D1"   # wrangler d1 create centec-planeacion
+database_id = "03a8ddb5-9dc6-46a2-8e3e-6a6e966906d2"   # creada el 21-oct-2026, migraciones 0001–0004 aplicadas
 migrations_dir = "worker/migrations"
 
 # ACCESO (secretos, nunca en el repositorio):

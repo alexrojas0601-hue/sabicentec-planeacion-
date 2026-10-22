@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 jobs:
   deploy:
+    if: vars.DEPLOY_DESDE_GITHUB == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

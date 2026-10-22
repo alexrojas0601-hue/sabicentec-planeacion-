@@ -59,6 +59,15 @@ Y una cuarta, sobre el propio sistema: **¿el aplicativo mejora con cada ciclo?*
 
 Todo cambio que proponen los agentes llega como **Pull Request** para aprobación de coordinación o rectoría. Nada se aplica solo.
 
+## Estado del despliegue (21-oct-2026)
+
+- Repositorio: `alexrojas0601-hue/sabicentec-planeacion-` (se recomienda volverlo **privado**).
+- Worker en Cloudflare: `sabicentec-planeacion`, conectado al repositorio (cada push a `main` despliega). Comando de despliegue sugerido en Cloudflare: `npm run cf:deploy` (aplica migraciones y despliega).
+- Base de datos D1 `centec-planeacion` creada, con migraciones 0001–0004 aplicadas y el año 2027 abierto.
+- Dominio: `planeacion.sabicentec.com` (lo crea `wrangler deploy` porque la zona está en la misma cuenta).
+- Pendiente: Cloudflare Access sobre `planeacion.sabicentec.com` y los secretos `ADMINS` y `AGENTES_TOKEN`. Mientras no estén, la app muestra «Sin acceso» a todos (seguro por defecto).
+- Los flujos de agentes en GitHub no corren hasta crear la variable `AGENTES_ACTIVOS = true` (y los secretos). El despliegue desde GitHub Actions es opcional (`DEPLOY_DESDE_GITHUB = true`); por defecto despliega Cloudflare.
+
 ## Puesta en marcha (una sola vez, ~30 minutos)
 
 1. **GitHub:** crear el repositorio privado `centec-planeacion` y subir esta carpeta.

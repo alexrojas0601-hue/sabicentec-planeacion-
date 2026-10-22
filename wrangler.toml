@@ -1,5 +1,5 @@
 # Sistema de Planeación CENTEC — Cloudflare Worker + static assets + D1
-name = "centec-planeacion"
+name = "sabicentec-planeacion"   # debe coincidir con el Worker creado en Cloudflare
 main = "worker/src/index.js"
 
 # Subdominio dentro del ecosistema SABI (la zona sabicentec.com ya está en esta cuenta de Cloudflare)
@@ -10,11 +10,11 @@ compatibility_date = "2026-01-01"
 directory = "./web"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/descargas/*"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "centec-planeacion"
+database_name = "sabicentec-planeacion"   # debe coincidir con el Worker creado en Cloudflare
 database_id = "03a8ddb5-9dc6-46a2-8e3e-6a6e966906d2"   # creada el 21-oct-2026, migraciones 0001–0004 aplicadas
 migrations_dir = "worker/migrations"
 

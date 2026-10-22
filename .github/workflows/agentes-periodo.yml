@@ -8,6 +8,7 @@ on:
 permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
 jobs:
   auditoria:
+    if: vars.AGENTES_ACTIVOS == 'true'
     runs-on: ubuntu-latest
     env:
       ANIO: ${{ github.event.client_payload.anio || inputs.anio }}

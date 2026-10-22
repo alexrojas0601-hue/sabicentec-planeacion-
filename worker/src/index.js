@@ -46,6 +46,10 @@ export default {
     const anioQ = () => Number(url.searchParams.get('anio') || new Date().getFullYear());
     try {
       if (p === '/api/health') return J({ ok: true, ts: new Date().toISOString() });
+      if (p.startsWith('/descargas/')) { // documentos solo para usuarios autorizados
+        if (!(await perfil(req, env))) return new Response('Inicie sesión con un correo autorizado de CENTEC para descargar.', { status: 403 });
+        return env.ASSETS.fetch(req);
+      }
       if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
 
       const pf = await perfil(req, env);

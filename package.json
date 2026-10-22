@@ -10,6 +10,7 @@
     "validar": "node scripts/validar-datos.mjs",
     "web": "node scripts/empaquetar-web.mjs",
     "dev": "npm run web && npx wrangler dev",
+    "cf:deploy": "npx wrangler d1 migrations apply centec-planeacion --remote && npx wrangler deploy",
     "deploy": "npm run documentos && npm run web && npx wrangler d1 migrations apply centec-planeacion --remote && npx wrangler deploy",
     "indicadores": "node scripts/calcular-indicadores.mjs",
     "comparar": "node scripts/comparar-anios.mjs",

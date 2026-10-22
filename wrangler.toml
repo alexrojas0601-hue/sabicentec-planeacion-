@@ -1,0 +1,25 @@
+# Sistema de Planeación CENTEC — Cloudflare Worker + static assets + D1
+name = "centec-planeacion"
+main = "worker/src/index.js"
+compatibility_date = "2026-01-01"
+
+[assets]
+directory = "./web"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "centec-planeacion"
+database_id = "REEMPLAZAR_CON_ID_DE_D1"   # wrangler d1 create centec-planeacion
+migrations_dir = "worker/migrations"
+
+[vars]
+# Correos autorizados a escribir (además de Cloudflare Access). Separados por coma.
+EDITORES = "rectoria@centec.edu.co,coordinacion@centec.edu.co"
+
+# Automatización: todos los días 6:00 a. m. Colombia (11:00 UTC)
+[triggers]
+crons = ["0 11 * * *"]
+# Secretos (wrangler secret put): ALERT_WEBHOOK (Google Chat / Slack / pasarela WhatsApp), GH_TOKEN, GH_REPO

@@ -1,0 +1,166 @@
+{
+ "version": "1.0",
+ "vigente_desde": 2027,
+ "nota": "Si cambia una fórmula o peso, se sube la versión y el comparativo interanual marca 'serie rota'.",
+ "componentes": [
+  {
+   "id": "puntualidad",
+   "codigo": "C1",
+   "nombre": "Planeación entregada a tiempo",
+   "formula": "planeadores entregados ≤ fecha límite / exigidos × 100",
+   "peso": 0.05,
+   "fuente": "Marca de tiempo del servidor (no editable)",
+   "frecuencia": "semanal",
+   "responsable": "Coordinación académica"
+  },
+  {
+   "id": "ejecucion",
+   "codigo": "C2",
+   "nombre": "Ejecución de semanas planeadas",
+   "formula": "semanas con evidencia fechada (cuaderno/foto/SABI) que coincide con el planeador / semanas planeadas × 100",
+   "peso": 0.1,
+   "fuente": "Evidencias fechadas",
+   "frecuencia": "semanal",
+   "responsable": "Coordinación académica"
+  },
+  {
+   "id": "cobertura",
+   "codigo": "C3",
+   "nombre": "Cobertura de DBA",
+   "formula": "DBA con actividad y evaluación evidenciadas / DBA programados del período × 100",
+   "peso": 0.1,
+   "fuente": "Planeador + cuadernos",
+   "frecuencia": "período",
+   "responsable": "Coordinación académica"
+  },
+  {
+   "id": "planeador",
+   "codigo": "C4",
+   "nombre": "Calidad del planeador (R1)",
+   "formula": "suma de 8 criterios 0–3 / 24 × 100",
+   "peso": 0.1,
+   "fuente": "Rúbrica R1",
+   "frecuencia": "quincenal (muestra)",
+   "responsable": "Coordinación + agente pedagogo"
+  },
+  {
+   "id": "cuadernos",
+   "codigo": "C5",
+   "nombre": "Revisión de cuadernos (R2)",
+   "formula": "promedio rúbrica 0–3 en muestra aleatoria ciega → 0–100",
+   "peso": 0.1,
+   "fuente": "5 cuadernos sorteados/mes/curso/área",
+   "frecuencia": "mensual",
+   "responsable": "Coordinador de OTRA área"
+  },
+  {
+   "id": "observacion",
+   "codigo": "C6",
+   "nombre": "Observación de aula (Teach)",
+   "formula": "(promedio 9 elementos − 1)/4 × 100; kappa ≥ 0,60; normalizado por observador",
+   "peso": 0.2,
+   "fuente": "≥3 observaciones/año, ≥2 observadores, 1 sin aviso",
+   "frecuencia": "período",
+   "responsable": "Rector, vicerrector, coordinadores"
+  },
+  {
+   "id": "aprendizaje",
+   "codigo": "C7",
+   "nombre": "Ganancia de aprendizaje",
+   "formula": "g Hake por estudiante (pre ≤ 90) → contracción n/(n+10) → g 0,10=0 · 0,50=100",
+   "peso": 0.15,
+   "fuente": "Prueba diagnóstica y de cierre por DBA",
+   "frecuencia": "período",
+   "responsable": "Docente aplica; coordinación custodia"
+  },
+  {
+   "id": "inclusion",
+   "codigo": "C8",
+   "nombre": "PIAR y ajustes razonables",
+   "formula": "ajustes verificados / ajustes comprometidos × 100",
+   "peso": 0.1,
+   "fuente": "Códigos seudónimos PIAR",
+   "frecuencia": "período",
+   "responsable": "Docente de apoyo / psicología"
+  },
+  {
+   "id": "transversal",
+   "codigo": "C9",
+   "nombre": "Proyectos transversales",
+   "formula": "fases INSPIRA–DISEÑA–EXPLORA–CREA–EVALÚA evidenciadas / 5 × 100",
+   "peso": 0.05,
+   "fuente": "Formato de proyecto + producto",
+   "frecuencia": "período",
+   "responsable": "Líder de proyecto"
+  },
+  {
+   "id": "estudiantes",
+   "codigo": "C10",
+   "nombre": "Percepción estudiantil (7Cs adaptada)",
+   "formula": "promedio 10 ítems → 0–100; solo si n ≥ 10; anónima",
+   "peso": 0.05,
+   "fuente": "Encuesta en SABI sin el docente presente",
+   "frecuencia": "2 veces/año",
+   "responsable": "Psicología"
+  }
+ ],
+ "reglas_bloqueo": [
+  "Ejecución < 60 % ⇒ rojo automático",
+  "PIAR < 80 % ⇒ máximo amarillo",
+  "Observación < 50 con 2 observadores ⇒ máximo amarillo",
+  "Nunca rojo con kappa < 0,60: repetir observación",
+  "Menos de 3 fuentes ⇒ sin calificación",
+  "Fuentes que difieren > 25 puntos ⇒ triangular antes del color"
+ ],
+ "semaforo": [
+  {
+   "color": "verde",
+   "min": 85
+  },
+  {
+   "color": "amarillo",
+   "min": 70
+  },
+  {
+   "color": "rojo",
+   "min": 0
+  }
+ ],
+ "institucionales": [
+  {
+   "id": "lectura",
+   "nombre": "Libros leídos por estudiante",
+   "meta": "≥ 6 primaria; plan lector secundaria"
+  },
+  {
+   "id": "saber",
+   "nombre": "Resultados Saber 3°, 5°, 9°, 11°",
+   "meta": "línea base + mejora"
+  },
+  {
+   "id": "horas",
+   "nombre": "Horas efectivas (Resolución MEN 1730 de 2004, colegios privados)",
+   "meta": "800 preescolar / 1000 primaria / 1200 secundaria-media"
+  },
+  {
+   "id": "dba",
+   "nombre": "Cobertura DBA institucional",
+   "meta": "100 %"
+  },
+  {
+   "id": "neuromitos",
+   "nombre": "Cuestionario de neuromitos (Dekker 2012) docentes",
+   "meta": "≥ 80 % de respuestas correctas"
+  },
+  {
+   "id": "socioemocional",
+   "nombre": "Reporte semestral de competencias socioemocionales (Ley 2491/2025)",
+   "meta": "2 reportes al año"
+  },
+  {
+   "id": "familias",
+   "nombre": "Actividades de escuela de padres (Decreto 459/2024)",
+   "meta": "≥ 3 al año con caracterización y asistencia"
+  }
+ ]
+}

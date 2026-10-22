@@ -1,0 +1,28 @@
+name: Agentes — mejora continua del aplicativo
+on:
+  schedule: [{ cron: '0 12 15 * *' }]          # día 15 de cada mes
+  issues: { types: [labeled] }                   # al etiquetar un issue con "mejora"
+  workflow_run:                                   # después de cada auditoría, revisión normativa o cierre
+    workflows: ['Agentes — auditoría de período (semanas 5 y 10)', 'Agentes — revisión normativa mensual', 'Agentes — cierre y apertura anual']
+    types: [completed]
+  workflow_dispatch:
+permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+jobs:
+  mejorar:
+    if: github.event_name != 'issues' || github.event.label.name == 'mejora'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Ejecuta la skill mejora-aplicativo con el agente ingeniero-mejora-continua.
+            Revisa issues abiertos con etiqueta "mejora", los informes recientes de docs/informes/ y las lecciones de cierre.
+            Implementa solo cambios probados (npm test, npm run privacidad, npm run validar, node scripts/empaquetar-web.mjs).
+            Abre un Pull Request por tema con título "Mejora: …" y la forma de medir su efecto.
+            Si no hay nada que mejorar, no abras PR.
+          claude_args: --max-turns 60

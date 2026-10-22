@@ -1,0 +1,91 @@
+{
+ "principio": "Lo que se revisa, cuándo, quién y con qué agente/skill. El cron del Worker y GitHub Actions ejecutan lo marcado 'auto'.",
+ "ciclos": [
+  {
+   "cuando": "Diario 6:00 a. m.",
+   "que": "Fotografía de indicadores, alertas",
+   "quien": "Worker (cron)",
+   "auto": true
+  },
+  {
+   "cuando": "Viernes",
+   "que": "Planeadores de la próxima semana pendientes → aviso",
+   "quien": "Worker (cron)",
+   "auto": true
+  },
+  {
+   "cuando": "Lunes semana 5 y 10 de cada período",
+   "que": "Auditoría de período (ICD, kappa, Hake, recomendaciones)",
+   "quien": "agentes-periodo.yml",
+   "skill": "revision-periodo",
+   "auto": true
+  },
+  {
+   "cuando": "Día 1 de cada mes",
+   "que": "Revisión normativa MEN / SEM Cali / ICFES",
+   "quien": "agentes-normativa.yml",
+   "skill": "revision-normativa",
+   "auto": true
+  },
+  {
+   "cuando": "Mensual",
+   "que": "Sorteo y revisión ciega de cuadernos",
+   "quien": "Coordinación",
+   "skill": "muestreo-cuadernos",
+   "auto": false
+  },
+  {
+   "cuando": "Cada período",
+   "que": "≥1 observación Teach por docente (20 % con doble observador); calibración trimestral",
+   "quien": "Directivos",
+   "skill": "observacion-aula",
+   "auto": false
+  },
+  {
+   "cuando": "Inicio y cierre de período",
+   "que": "Prueba diagnóstica y de cierre (Hake)",
+   "quien": "Docentes",
+   "auto": false
+  },
+  {
+   "cuando": "Cada período",
+   "que": "Seguimiento PIAR por código",
+   "quien": "Docente de apoyo",
+   "skill": "auditoria-piar",
+   "auto": false
+  },
+  {
+   "cuando": "Abril y septiembre",
+   "que": "Encuesta estudiantil 7Cs",
+   "quien": "Psicología",
+   "auto": false
+  },
+  {
+   "cuando": "15 de octubre",
+   "que": "APERTURA del año siguiente (normativa + malla + metas desde línea base)",
+   "quien": "agentes-anual.yml",
+   "skill": "apertura-anual",
+   "auto": true
+  },
+  {
+   "cuando": "1 de diciembre",
+   "que": "CIERRE anual, congelamiento, comparativo interanual, lecciones aprendidas",
+   "quien": "agentes-anual.yml",
+   "skill": "cierre-anual",
+   "auto": true
+  },
+  {
+   "cuando": "Día 15 de cada mes y tras cada auditoría, revisión normativa o cierre",
+   "que": "Mejora continua del aplicativo: sugerencias de usuarios, hallazgos y lecciones → Pull Requests probados",
+   "quien": "agentes-mejora.yml",
+   "skill": "mejora-aplicativo",
+   "auto": true
+  },
+  {
+   "cuando": "En cualquier momento",
+   "que": "Botón «Sugerir mejora» del aplicativo → issue con etiqueta mejora",
+   "quien": "Docentes y directivos",
+   "auto": true
+  }
+ ]
+}

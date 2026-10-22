@@ -1,0 +1,20 @@
+{
+  "name": "centec-planeacion",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sistema de Planeación, Seguimiento y Auditoría Académica CENTEC (multi-año: 2027, 2028…)",
+  "scripts": {
+    "test": "node --test scripts/pruebas.test.mjs",
+    "privacidad": "node scripts/escaneo-privacidad.mjs",
+    "validar": "node scripts/validar-datos.mjs",
+    "web": "node scripts/empaquetar-web.mjs",
+    "dev": "npm run web && npx wrangler dev",
+    "deploy": "npm run web && npx wrangler d1 migrations apply centec-planeacion --remote && npx wrangler deploy",
+    "indicadores": "node scripts/calcular-indicadores.mjs",
+    "comparar": "node scripts/comparar-anios.mjs",
+    "documentos": "node docs/generador/kit-auditoria.cjs 2027 entregables/Kit_Auditoria_Planeacion_CENTEC_2027.docx && cd docs/generador && python3 tablero_excel.py ../../entregables/Tablero_Indicadores_CENTEC.xlsx"
+  },
+  "devDependencies": { "wrangler": "^4.0.0",
+    "docx": "^9.0.0" }
+}

@@ -1,0 +1,12 @@
+name: CI — pruebas, privacidad y datos
+on: [push, pull_request]
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test scripts/pruebas.test.mjs
+      - run: node scripts/escaneo-privacidad.mjs      # bloquea datos personales de menores
+      - run: node scripts/validar-datos.mjs           # JSON válidos, normativa con URL y fecha

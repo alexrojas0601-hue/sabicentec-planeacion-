@@ -1,0 +1,36 @@
+name: Agentes — auditoría de período (semanas 5 y 10)
+on:
+  repository_dispatch: { types: [revision-periodo] }   # lo dispara el cron del Worker
+  workflow_dispatch:
+    inputs:
+      anio: { required: true, default: '2027' }
+      periodo: { required: true, default: '1' }
+permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    env:
+      ANIO: ${{ github.event.client_payload.anio || inputs.anio }}
+      PERIODO: ${{ github.event.client_payload.periodo || inputs.periodo }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Exportar registros del aplicativo
+        run: |
+          mkdir -p data/anios/$ANIO/registros
+          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" \
+            "${{ vars.APP_URL }}/api/export?anio=$ANIO" -o data/anios/$ANIO/registros/export.json
+      - run: node scripts/calcular-indicadores.mjs $ANIO $PERIODO > data/anios/$ANIO/indicadores-P$PERIODO.json
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Ejecuta la skill revision-periodo para el año ${{ env.ANIO }}, período ${{ env.PERIODO }}.
+            Usa los agentes auditor-cumplimiento y psicometra-evaluacion sobre
+            data/anios/${{ env.ANIO }}/indicadores-P${{ env.PERIODO }}.json.
+            Pide al pedagogo-curricular, neuroeducador y neuropsicologo-inclusion 3 recomendaciones
+            accionables cada uno para los docentes en rojo o amarillo.
+            Escribe docs/informes/${{ env.ANIO }}-P${{ env.PERIODO }}-auditoria.md (sin datos personales)
+            , registra como issues con etiqueta "mejora" las fallas o vacíos del aplicativo detectados, y abre un issue "Auditoría P${{ env.PERIODO }} ${{ env.ANIO }}" asignado a coordinación académica.
+          claude_args: --max-turns 40

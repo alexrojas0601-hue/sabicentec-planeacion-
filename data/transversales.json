@@ -1,0 +1,82 @@
+{
+ "nota": "Proyectos transversales obligatorios y su trazabilidad. Verificar vigencia con el agente investigador-normativo.",
+ "fases": [
+  "INSPIRA",
+  "DISEÑA",
+  "EXPLORA",
+  "CREA",
+  "EVALÚA"
+ ],
+ "proyectos": [
+  {
+   "id": "PESCC",
+   "nombre": "Educación para la sexualidad y construcción de ciudadanía",
+   "base": "Ley 115/1994 art. 14; Ley 1620/2013"
+  },
+  {
+   "id": "PRAE",
+   "nombre": "Proyecto ambiental escolar",
+   "base": "Ley 115 art. 14; Decreto 1743/1994; Ley 1549/2012; Ley 2563/2025 (protección animal)"
+  },
+  {
+   "id": "DEMOCRACIA",
+   "nombre": "Educación para la justicia, la paz, la democracia (gobierno escolar, Constitución)",
+   "base": "Ley 115 art. 14; Ley 107/1994"
+  },
+  {
+   "id": "TIEMPO_LIBRE",
+   "nombre": "Aprovechamiento del tiempo libre, recreación y deporte",
+   "base": "Ley 115 art. 14; Ley 181/1995"
+  },
+  {
+   "id": "PAZ",
+   "nombre": "Cátedra de la paz",
+   "base": "Ley 1732/2014; Decreto 1038/2015"
+  },
+  {
+   "id": "URBANIDAD",
+   "nombre": "Urbanidad y Cívica",
+   "base": "Ley 1013/2006"
+  },
+  {
+   "id": "SOCIOEMOCIONAL",
+   "nombre": "Educación socioemocional y Cátedra de Educación Emocional",
+   "base": "Leyes 2491/2025, 2503/2025 y 2460/2025"
+  },
+  {
+   "id": "CONVIVENCIA",
+   "nombre": "Convivencia escolar y competencias ciudadanas",
+   "base": "Ley 1620/2013; Decreto 1965/2013"
+  },
+  {
+   "id": "VIAL",
+   "nombre": "Educación en seguridad vial",
+   "base": "Ley 1503/2011"
+  },
+  {
+   "id": "FINANCIERA",
+   "nombre": "Educación económica y financiera",
+   "base": "Guía 26 MEN (obligatoriedad legal por verificar; PL 067/2026 en trámite)"
+  },
+  {
+   "id": "AFRO",
+   "nombre": "Cátedra de estudios afrocolombianos",
+   "base": "Decreto 1122/1998"
+  },
+  {
+   "id": "HISTORIA",
+   "nombre": "Historia de Colombia en ciencias sociales",
+   "base": "Ley 1874/2017"
+  },
+  {
+   "id": "RIESGO",
+   "nombre": "Gestión del riesgo escolar",
+   "base": "Ley 1523/2012"
+  },
+  {
+   "id": "FUTURO",
+   "nombre": "Proyecto FUTURO CENTEC (pensamiento crítico, tecnología, IA, finanzas, ética, liderazgo)",
+   "base": "PEI CENTEC"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+name: Agentes — cierre y apertura anual
+on:
+  schedule:
+    - cron: '0 13 15 10 *'   # 15 de octubre: APERTURA del año siguiente
+    - cron: '0 13 1 12 *'    # 1 de diciembre: CIERRE del año en curso
+  workflow_dispatch:
+    inputs:
+      accion: { type: choice, options: [apertura, cierre], required: true }
+permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+jobs:
+  anual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - id: q
+        run: |
+          A=$(date +%Y); M=$(date +%m)
+          ACC="${{ inputs.accion }}"; [ -z "$ACC" ] && { [ "$M" = "10" ] && ACC=apertura || ACC=cierre; }
+          echo "accion=$ACC" >> $GITHUB_OUTPUT; echo "anio=$A" >> $GITHUB_OUTPUT; echo "siguiente=$((A+1))" >> $GITHUB_OUTPUT
+      - if: steps.q.outputs.accion == 'cierre'
+        run: |
+          mkdir -p data/anios/${{ steps.q.outputs.anio }}/registros
+          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" \
+            "${{ vars.APP_URL }}/api/export?anio=${{ steps.q.outputs.anio }}" -o data/anios/${{ steps.q.outputs.anio }}/registros/export.json
+          node scripts/calcular-indicadores.mjs ${{ steps.q.outputs.anio }} > data/anios/${{ steps.q.outputs.anio }}/resumen.json
+          node scripts/comparar-anios.mjs > docs/informes/comparativo-interanual.md
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Acción: ${{ steps.q.outputs.accion }}. Año en curso ${{ steps.q.outputs.anio }}, siguiente ${{ steps.q.outputs.siguiente }}.
+            Si es "cierre": ejecuta la skill cierre-anual y comparativo-interanual con el agente orquestador-academico;
+            genera data/anios/${{ steps.q.outputs.anio }}/cierre/lecciones.json y docs/informes/${{ steps.q.outputs.anio }}-cierre.md.
+            Si es "apertura": ejecuta la skill apertura-anual para ${{ steps.q.outputs.siguiente }} con todos los agentes.
+            Abre un Pull Request para aprobación de rectoría. Registra en un issue con etiqueta "mejora" toda mejora que el aplicativo necesite según este ciclo. Ejecuta guardian-datos antes de terminar.
+          claude_args: --max-turns 60

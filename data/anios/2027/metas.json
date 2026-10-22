@@ -1,0 +1,14 @@
+{
+ "anio": 2027,
+ "nota": "2027 es el año línea base: las metas de 2028 se calculan como resultado 2027 + mejora esperada.",
+ "metas": {
+  "icd_institucional": 75,
+  "ejecucion": 90,
+  "cobertura": 100,
+  "inclusion": 90,
+  "aprendizaje_g": 0.3,
+  "libros_primaria": 6,
+  "kappa_observadores": 0.6,
+  "docentes_en_rojo_max_pct": 10
+ }
+}

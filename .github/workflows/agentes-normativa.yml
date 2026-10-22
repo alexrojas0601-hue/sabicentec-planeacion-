@@ -1,0 +1,21 @@
+name: Agentes — revisión normativa mensual
+on:
+  schedule: [{ cron: '0 12 1 * *' }]   # día 1 de cada mes, 7:00 a. m. Colombia
+  workflow_dispatch:
+permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+jobs:
+  normativa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Ejecuta la skill revision-normativa usando el agente investigador-normativo.
+            Fecha de hoy: usa `date`. Actualiza data/normativa.json (ultima_verificacion).
+            Si hay cambios con impacto en la planeación, invoca al agente revisor-actualizador
+            y abre un Pull Request titulado "Normativa: novedades <mes año>" para aprobación de coordinación.
+            Si no hay novedades, abre un issue corto "Normativa sin cambios <mes año>" con las fuentes consultadas.
+            Si una norma exige un campo, formulario o alerta nueva en el aplicativo, abre además un issue con etiqueta "mejora". Antes de terminar ejecuta el agente guardian-datos.
+          claude_args: --max-turns 40

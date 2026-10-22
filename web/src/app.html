@@ -1,0 +1,381 @@
+<title>Planeación CENTEC</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: tablero de coordinación — barra de pestañas fija arriba, contenido en una columna amplia; resumen antes que detalle */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --ink:#15232b; --muted:#5a6b73; --line:#d9e0e3;
+  --accent:#0d5f73; --accent-soft:#e1eef1; --chalk:#1d3b33;
+  --ok:#1f7a4a; --ok-bg:#e3f3ea; --warn:#a86b00; --warn-bg:#fbf0d9; --bad:#b3362b; --bad-bg:#f9e3e0; --na:#7b878c; --na-bg:#eceff0;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171b; --panel:#162228; --ink:#e3ebee; --muted:#93a4ab; --line:#29383f;
+  --accent:#5cb8cc; --accent-soft:#18323a; --chalk:#a8d5c4;
+  --ok:#5fcf8f; --ok-bg:#163326; --warn:#f0b54a; --warn-bg:#3a2d12; --bad:#f08072; --bad-bg:#3d1c19; --na:#8e9ba0; --na-bg:#212d32; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171b; --panel:#162228; --ink:#e3ebee; --muted:#93a4ab; --line:#29383f;
+  --accent:#5cb8cc; --accent-soft:#18323a; --chalk:#a8d5c4;
+  --ok:#5fcf8f; --ok-bg:#163326; --warn:#f0b54a; --warn-bg:#3a2d12; --bad:#f08072; --bad-bg:#3d1c19; --na:#8e9ba0; --na-bg:#212d32; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 48px;display:grid;gap:18px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.brand{display:flex;gap:10px;align-items:baseline;margin-right:auto}
+.brand b{font:700 20px/1 var(--f-display);letter-spacing:-.01em}
+.brand span{font:600 11px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+select,input,textarea,button{font:inherit;color:inherit}
+select,input,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0}
+textarea{width:100%;min-height:64px}
+button{cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--panel);border-radius:6px;padding:7px 14px;font-weight:600}
+button.ghost{background:transparent;color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;width:100%;scrollbar-width:thin}
+nav.tabs button{background:transparent;color:var(--muted);border:0;border-bottom:3px solid transparent;border-radius:0;padding:8px 12px;white-space:nowrap;font-weight:600}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:26px} h2{font-size:20px} h3{font-size:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0}
+.muted{color:var(--muted)} .small{font-size:13px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.kpi{display:grid;gap:2px}
+.kpi .v{font:700 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi .l{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.banner{border:1px dashed var(--warn);background:var(--warn-bg);color:var(--ink);border-radius:8px;padding:10px 14px;font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font:600 12px var(--f-body);white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.verde{color:var(--ok);background:var(--ok-bg)} .amarillo{color:var(--warn);background:var(--warn-bg)} .rojo{color:var(--bad);background:var(--bad-bg)} .gris{color:var(--na);background:var(--na-bg)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--accent-soft)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.comp{display:grid;grid-template-columns:minmax(150px,1.3fr) 3fr 56px 52px;gap:10px;align-items:center;font-size:14px}
+.comp .w{font:12px var(--f-mono);color:var(--muted);text-align:right}
+form.reg{display:grid;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{display:grid;gap:4px;flex:1 1 150px;font-size:13px;color:var(--muted)}
+.crit{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;font-size:14px;border-top:1px solid var(--line);padding-top:8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg label{padding:4px 9px;cursor:pointer;font:600 13px var(--f-mono);border-left:1px solid var(--line)}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg input:checked+span{color:var(--accent)} .seg label:has(input:checked){background:var(--accent-soft)}
+.alert{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-weight:600;z-index:20}
+.chip{font:600 11px var(--f-mono);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted);white-space:nowrap}
+.agent{display:grid;gap:4px;border-top:1px solid var(--line);padding-top:10px}
+.agent b{font-family:var(--f-display)}
+.two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+svg text{fill:var(--muted);font:11px var(--f-mono)}
+details summary{cursor:pointer;font-weight:600}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .4s ease}}
+@media (max-width:560px){.comp{grid-template-columns:1fr 52px;}.comp .bar,.comp .w{display:none}}
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><b>Planeación CENTEC</b><span>Seguimiento y auditoría académica</span></div>
+  <label class="small muted">Año <select id="selAnio"></select></label>
+  <label class="small muted">Período <select id="selPer"><option value="">Año completo</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</div></header>
+
+<main class="wrap" id="main"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+/*@@MOTOR@@*/
+const DATOS = /*@@DATOS@@*/{};
+
+// ---------- Estado ----------
+const LS = 'centec-planeacion-v1';
+const st = { api: false, anio: 2027, periodo: '', tab: 'tablero', regs: {}, anios: [], cerrados: [], docSel: null, demo: true };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const f1 = x => x == null ? '—' : (Math.round(x * 10) / 10).toFixed(1);
+function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(() => e.hidden = true, 2600); }
+function guardar() { try { localStorage.setItem(LS, JSON.stringify({ regs: st.regs, anios: st.anios, cerrados: st.cerrados, demo: st.demo, sugerencias: st.sugerencias || [] })); } catch (e) {} }
+function cargarLocal() { try { const d = JSON.parse(localStorage.getItem(LS) || 'null'); if (d) Object.assign(st, d); return !!d; } catch (e) { return false; } }
+
+// ---------- Datos de ejemplo (claramente marcados) ----------
+const GRADOS = ['Transición', '1°', '2°', '3°', '4°', '5°', '6°', '7°', '8°', '9°', '10°', '11°'];
+const AREAS = ['Integrada', 'Matemáticas', 'Lenguaje', 'Ciencias Naturales', 'Ciencias Sociales', 'Inglés', 'Tecnología e Informática', 'Ética y Religión', 'Artística', 'Educación Física', 'Física', 'Química', 'Filosofía', 'Ciencias Económicas y Políticas'];
+function demo(anio, mejora) {
+  const r = []; let seed = anio * 7;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const docentes = ['Docente A (Transición)', 'Docente B (1°)', 'Docente C (3°)', 'Docente D (5°)', 'Docente E (Inglés primaria)', 'Docente F (Matemáticas 6°–9°)', 'Docente G (Lenguaje 6°–11°)', 'Docente H (Ciencias 6°–11°)'];
+  const perfil = [0.9, 0.75, 0.6, 0.85, 0.7, 0.45, 0.8, 0.65].map(p => Math.min(0.97, p + mejora));
+  docentes.forEach((d, i) => {
+    const p = perfil[i], g = GRADOS[[0, 1, 3, 5, 5, 7, 9, 8][i]];
+    for (let per = 1; per <= 4; per++) {
+      const j = () => (rnd() - 0.5) * 0.2;
+      r.push({ id: `${anio}-${i}-${per}-pl`, anio, periodo: per, tipo: 'planeador', docente: d, grado: g, payload: { a_tiempo: rnd() < p + 0.1, rubrica: Array.from({ length: 8 }, () => Math.max(0, Math.min(3, Math.round(3 * (p + j()))))), dba_total: 6, dba_cubiertos: Math.min(6, Math.round(6 * (p + 0.1 + j()))) } });
+      r.push({ id: `${anio}-${i}-${per}-ej`, anio, periodo: per, tipo: 'ejecucion', docente: d, grado: g, payload: { semanas_planeadas: 10, semanas_ejecutadas: Math.min(10, Math.round(10 * (p + 0.15 + j()))) } });
+      r.push({ id: `${anio}-${i}-${per}-cu`, anio, periodo: per, tipo: 'cuaderno', docente: d, grado: g, payload: { semilla: `${anio}-${per}|${g}`, muestra: I.sortear(`${anio}-${per}|${g}`, 28, 5), puntajes: Array.from({ length: 5 }, () => Math.max(0, Math.min(3, Math.round(3 * (p + j()))))) } });
+      const base = 1 + 4 * p;
+      const o1 = Array.from({ length: 9 }, () => Math.max(1, Math.min(5, Math.round(base + (rnd() - 0.5) * 1.2))));
+      const o2 = per % 2 ? o1.map(x => Math.max(1, Math.min(5, x + (rnd() < 0.25 ? (rnd() < 0.5 ? 1 : -1) : 0)))) : null;
+      r.push({ id: `${anio}-${i}-${per}-ob`, anio, periodo: per, tipo: 'observacion', docente: d, grado: g, payload: { obs1: { observador: per % 2 ? 'Coordinación académica' : 'Rectoría', puntajes: o1 }, obs2: o2 && { observador: 'Vicerrectoría', puntajes: o2 }, tiempo_aprendizaje: Math.round(60 + 35 * p) } });
+      r.push({ id: `${anio}-${i}-${per}-re`, anio, periodo: per, tipo: 'resultado', docente: d, grado: g, payload: { estudiantes: Array.from({ length: 24 }, () => { const pre = 25 + rnd() * 40; return { pre: Math.round(pre), post: Math.round(Math.min(100, pre + (100 - pre) * (0.1 + 0.45 * p + j()))) }; }) } });
+      if (i % 3 === 0) r.push({ id: `${anio}-${i}-${per}-pi`, anio, periodo: per, tipo: 'piar', docente: d, grado: g, payload: { codigo: `P-${anio}-${String(i).padStart(2, '0')}-0${per}`, ajustes_planeados: 6, ajustes_evidenciados: Math.min(6, Math.round(6 * (p + 0.05))) } });
+      r.push({ id: `${anio}-${i}-${per}-tr`, anio, periodo: per, tipo: 'transversal', docente: d, grado: g, payload: { proyecto: ['PRAE', 'DEMOCRACIA', 'PESCC', 'FINANCIERA'][per - 1], fases_evidenciadas: Math.min(5, Math.round(5 * (p + 0.1))) } });
+      if (per === 2 || per === 4) r.push({ id: `${anio}-${i}-${per}-en`, anio, periodo: per, tipo: 'encuesta', docente: d, grado: g, payload: { n: 22, escala: 5, promedio: Math.min(5, 2.6 + 2.2 * p) } });
+    }
+  });
+  return r;
+}
+
+// ---------- API (Cloudflare) o modo local ----------
+async function detectarApi() {
+  try { const r = await fetch('/api/health', { cache: 'no-store' }); if (!r.ok) return false; const j = await r.json(); return !!j.ok; } catch (e) { return false; }
+}
+async function cargarAnio(anio) {
+  if (st.api) {
+    const r = await fetch(`/api/registros?anio=${anio}`); st.regs[anio] = r.ok ? await r.json() : [];
+  }
+  st.regs[anio] ||= [];
+}
+async function enviar(reg) {
+  if (st.cerrados.includes(reg.anio)) { toast(`El año ${reg.anio} está cerrado: solo lectura`); return false; }
+  if (st.api) {
+    const r = await fetch('/api/registros', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(reg) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(j.error || 'No se pudo guardar'); return false; }
+  }
+  st.regs[reg.anio].push({ ...reg, id: reg.id || crypto.randomUUID(), creado: new Date().toISOString() });
+  guardar(); return true;
+}
+
+// ---------- Pestañas ----------
+const TABS = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
+function pintarTabs() {
+  $('#tabs').innerHTML = TABS.map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; st.tab = b.dataset.t; st.docSel = null; render(); });
+$('#selAnio').addEventListener('change', async e => { st.anio = Number(e.target.value); await cargarAnio(st.anio); render(); });
+$('#selPer').addEventListener('change', e => { st.periodo = e.target.value; render(); });
+
+const pill = s => `<span class="pill ${s.color}">${esc(s.nivel.split(' — ')[0])}</span>`;
+const NOMBRES = Object.fromEntries((DATOS.indicadores?.componentes || []).map(c => [c.id, `${c.codigo} ${c.nombre}`]));
+const regsActuales = () => st.regs[st.anio] || [];
+
+function bannerDemo() {
+  return st.demo ? `<div class="banner"><b>Datos de ejemplo.</b> Los docentes A–H y sus cifras son ficticios (2026 aparece como año cerrado de ejemplo para mostrar el comparativo). Bórrelos en <i>Años y datos</i> antes de cargar evidencias reales${st.api ? '' : ' (modo local: los datos viven solo en este navegador; en Cloudflare se guardan en la base de datos institucional)'}.</div>` : (st.api ? '' : `<div class="banner">Modo local: los registros viven solo en este navegador. Exporte el JSON o despliegue en Cloudflare para tener una base compartida.</div>`);
+}
+
+function vTablero() {
+  const per = st.periodo ? Number(st.periodo) : null;
+  const R = regsActuales();
+  const res = I.calcularTodo(R, per);
+  const al = I.alertas(per ? R.filter(r => r.periodo === per) : R, st.anio);
+  const cuenta = c => res.filas.filter(f => f.semaforo.color === c).length;
+  const meta = (DATOS.metas || {}).icd_institucional;
+  if (st.docSel) return vDocente(st.docSel, per);
+  return `${bannerDemo()}
+  <section class="grid">
+    <div class="card kpi"><span class="l">ICD institucional ${st.anio}${per ? ' · P' + per : ''}</span><span class="v">${f1(res.institucional)}</span><span class="small muted">Meta ${meta ?? '—'} · fórmula v${I.VERSION}</span></div>
+    <div class="card kpi"><span class="l">Docentes en verde</span><span class="v" style="color:var(--ok)">${cuenta('verde')}</span><span class="small muted">ICD ≥ 85</span></div>
+    <div class="card kpi"><span class="l">En amarillo</span><span class="v" style="color:var(--warn)">${cuenta('amarillo')}</span><span class="small muted">70–84 · plan de mejora</span></div>
+    <div class="card kpi"><span class="l">En rojo / pendientes</span><span class="v" style="color:var(--bad)">${cuenta('rojo')} <span class="muted" style="font-size:20px">/ ${cuenta('gris')}</span></span><span class="small muted">&lt; 70 · o sin evidencia suficiente</span></div>
+  </section>
+  <section class="card">
+    <h2>Cumplimiento por docente</h2>
+    <p class="small muted">Toque un docente para ver los 10 componentes, las reglas aplicadas y su evolución por período. Ningún color se asigna con menos de 3 fuentes de evidencia.</p>
+    <div class="tbl"><table><thead><tr><th>Docente</th><th>ICD</th><th>Estado</th><th>Ejecución</th><th>Observación</th><th>Aprendizaje</th><th>Fuentes</th><th>κ obs.</th></tr></thead><tbody>
+    ${res.filas.map(f => `<tr class="click" data-doc="${esc(f.docente)}" tabindex="0"><td>${esc(f.docente)}${f.reglas.length ? ` <span class="chip" title="${esc(f.reglas.join(' · '))}">${f.reglas.length} regla${f.reglas.length > 1 ? 's' : ''}</span>` : ''}</td><td class="n"><b>${f1(f.icd)}</b></td><td>${pill(f.semaforo)}</td><td class="n">${f1(f.componentes.ejecucion)}</td><td class="n">${f1(f.componentes.observacion)}</td><td class="n">${f1(f.componentes.aprendizaje)}</td><td class="n">${f.fuentes}</td><td class="n">${f.kappa_promedio == null ? '—' : f.kappa_promedio.toFixed(2)}</td></tr>`).join('') || `<tr><td colspan="8" class="muted">Aún no hay registros para ${st.anio}. Empiece en «Registrar evidencia».</td></tr>`}
+    </tbody></table></div>
+  </section>
+  <section class="two">
+    <div class="card"><h2>Alertas automáticas</h2>${al.length ? al.slice(0, 14).map(a => `<div class="alert"><span class="pill ${a.nivel === 'alta' ? 'rojo' : a.nivel === 'media' ? 'amarillo' : 'gris'}">${a.nivel}</span><div><b>${esc(a.docente)}</b><br><span class="muted">${esc(a.msg)}</span></div></div>`).join('') : '<p class="muted">Sin alertas.</p>'}</div>
+    <div class="card"><h2>Promedio institucional por componente</h2>${Object.keys(I.PESOS).map(k => { const v = res.filas.map(f => f.componentes[k]).filter(x => x != null); const m = v.length ? v.reduce((a, b) => a + b) / v.length : null; return `<div class="comp"><span>${esc(NOMBRES[k] || k)}</span><div class="bar"><i style="width:${m ?? 0}%"></i></div><span class="mono">${f1(m)}</span><span class="w">${Math.round(I.PESOS[k] * 100)} %</span></div>`; }).join('')}</div>
+  </section>`;
+}
+
+function vDocente(doc, per) {
+  const R = regsActuales();
+  const f = I.calcularDocente(R, doc, per);
+  const serie = [1, 2, 3, 4].map(p => I.calcularDocente(R, doc, p).icd);
+  const W = 320, H = 120, x = i => 30 + i * 90, y = v => H - 20 - (v ?? 0) * (H - 40) / 100;
+  const pts = serie.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+  return `<button class="ghost" id="volver">← Volver al tablero</button>
+  <section class="card"><div class="row" style="align-items:center"><h1 style="margin-right:auto">${esc(doc)}</h1>${pill(f.semaforo)}<span class="kpi"><span class="v">${f1(f.icd)}</span></span></div>
+  <p class="small muted">${esc(f.semaforo.accion || 'Completar evidencias: se necesitan al menos 3 fuentes independientes.')} · Fuentes: ${f.fuentes} · Observadores distintos: ${f.observadores} · Pesos con dato: ${f.cobertura_pesos} %</p>
+  ${Object.keys(I.PESOS).map(k => `<div class="comp"><span>${esc(NOMBRES[k] || k)}</span><div class="bar"><i style="width:${f.componentes[k] ?? 0}%"></i></div><span class="mono">${f1(f.componentes[k])}</span><span class="w">${Math.round(I.PESOS[k] * 100)} %</span></div>`).join('')}
+  ${f.reglas.length ? `<div class="banner"><b>Reglas aplicadas:</b><br>${f.reglas.map(esc).join('<br>')}</div>` : ''}
+  </section>
+  <section class="card"><h2>Evolución del ICD por período (${st.anio})</h2>
+  <div class="tbl"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px" role="img" aria-label="ICD por período">
+   ${[0, 70, 85, 100].map(v => `<line x1="24" x2="${W - 10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="0" y="${y(v) + 4}">${v}</text>`).join('')}
+   ${pts.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" points="${pts.map(p => p.join(',')).join(' ')}"/>` : ''}
+   ${serie.map((v, i) => `<text x="${x(i) - 8}" y="${H - 4}">P${i + 1}</text>${v == null ? '' : `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="var(--accent)"/><text x="${x(i) - 10}" y="${y(v) - 8}" style="fill:var(--ink)">${f1(v)}</text>`}`).join('')}
+  </svg></div></section>`;
+}
+
+const RUBRICAS = {
+  planeador: ['Objetivo en lenguaje del estudiante y criterios de éxito', 'DBA / estándar explícito y pertinente al grado', 'Fases INSPIRA–DISEÑA–EXPLORA–CREA–EVALÚA con producto', 'Práctica de recuperación o repaso espaciado programado', 'Verificación de comprensión de todo el grupo', 'Evaluación formativa con retroalimentación accionable', 'DUA: ≥2 formas de presentar y ≥2 de demostrar', 'Ajustes PIAR y proyecto transversal / plan lector vinculados'],
+  cuaderno: ['Fechas corresponden a las semanas planeadas', 'Evidencia de recuperación o práctica espaciada', 'Retroalimentación con acción y corrección del estudiante', 'Producto de la fase STEAM correspondiente', 'Ajuste DUA/PIAR visible (si aplica)'],
+  teach: ['Ambiente de apoyo (trato respetuoso, nombres)', 'Expectativas de comportamiento positivas', 'Facilitación de la lección (objetivo, explicación)', 'Verificación de comprensión', 'Retroalimentación', 'Pensamiento crítico', 'Autonomía de los estudiantes', 'Perseverancia', 'Habilidades sociales y colaborativas'],
+};
+const seg = (name, max, min = 0) => `<span class="seg">${Array.from({ length: max - min + 1 }, (_, i) => i + min).map(v => `<label><input type="radio" name="${name}" value="${v}" required><span>${v}</span></label>`).join('')}</span>`;
+
+function vRegistrar() {
+  const tipo = st.tipoReg || 'planeador';
+  const docs = [...new Set(regsActuales().map(r => r.docente))];
+  const comunes = `<div class="row">
+    <label>Docente<input id="r-doc" list="dl-doc" required placeholder="Nombre del docente"><datalist id="dl-doc">${docs.map(d => `<option value="${esc(d)}">`).join('')}</datalist></label>
+    <label>Grado<select id="r-grado">${GRADOS.map(g => `<option>${g}</option>`).join('')}</select></label>
+    <label>Área<select id="r-area">${AREAS.map(g => `<option>${g}</option>`).join('')}</select></label>
+    <label>Período<select id="r-per">${[1, 2, 3, 4].map(p => `<option ${String(p) === (st.periodo || '1') ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
+    <label>Semana<input id="r-sem" type="number" min="1" max="40" value="1"></label></div>`;
+  const esp = {
+    planeador: `<div class="row"><label>¿Entregado a tiempo? (lo registra el sistema en Cloudflare)<select id="p-tiempo"><option value="1">Sí</option><option value="0">No</option></select></label><label>DBA programados<input id="p-dbat" type="number" min="1" value="4"></label><label>DBA con actividad y evaluación<input id="p-dbac" type="number" min="0" value="4"></label></div>
+      <h3>Rúbrica R1 · calidad del planeador (0 = ausente, 3 = sólido)</h3>${RUBRICAS.planeador.map((c, i) => `<div class="crit"><span>${c}</span>${seg('r1-' + i, 3)}</div>`).join('')}`,
+    ejecucion: `<div class="row"><label>Semanas planeadas en el período<input id="e-pl" type="number" min="1" value="10"></label><label>Semanas con evidencia fechada que coincide<input id="e-ej" type="number" min="0" value="9"></label></div>`,
+    cuaderno: `<div class="card" style="background:var(--accent-soft)"><h3>Sorteo auditable de cuadernos</h3><div class="row"><label>Estudiantes en lista<input id="c-n" type="number" min="1" value="28"></label><label>Semilla (fecha|grado|área)<input id="c-seed" value="${new Date().toISOString().slice(0, 10)}|"></label></div><button type="button" class="ghost" id="c-sortear">Sortear números de lista</button><p class="mono" id="c-res">Muestra: —</p><p class="small muted">Cualquier auditor puede reproducir el sorteo con la misma semilla. La revisión la hace un coordinador de otra área, con el nombre del docente tapado.</p></div>
+      <h3>Rúbrica R2 · promedio de la muestra (0–3)</h3>${RUBRICAS.cuaderno.map((c, i) => `<div class="crit"><span>${c}</span>${seg('r2-' + i, 3)}</div>`).join('')}`,
+    observacion: `<p class="small muted">Instrumento Teach (Banco Mundial), 9 elementos de 1 a 5. Dos observadores califican por separado sin hablar; si κ ponderado &lt; 0,60 la observación no cuenta y se repite.</p>
+      <div class="row"><label>Observador 1<input id="o-1" required value="Coordinación académica"></label><label>Observador 2 (opcional)<input id="o-2" value=""></label><label>¿Con aviso?<select id="o-aviso"><option value="1">Con aviso</option><option value="0">Sin aviso (fecha sorteada)</option></select></label></div>
+      <div class="tbl"><table><thead><tr><th>Elemento</th><th>Obs. 1</th><th>Obs. 2</th></tr></thead><tbody>${RUBRICAS.teach.map((c, i) => `<tr><td>${c}</td><td>${seg('t1-' + i, 5, 1)}</td><td>${seg('t2-' + i, 5, 1).replaceAll(' required', '')}</td></tr>`).join('')}</tbody></table></div>`,
+    resultado: `<p class="small muted">Pegue los puntajes 0–100 de la prueba diagnóstica (pre) y de cierre (post), un estudiante por línea: <span class="mono">pre;post</span>. Use números de lista, nunca nombres. Se excluyen pre &gt; 90 (efecto techo).</p><textarea id="res-txt" placeholder="35;70&#10;50;78&#10;62;80"></textarea><p class="mono" id="res-g">g promedio: —</p>`,
+    piar: `<p class="small muted">Solo código seudónimo. El nombre, documento y diagnóstico quedan en el archivo físico restringido (Ley 1581/2012).</p><div class="row"><label>Código<input id="pi-cod" required pattern="P-\\d{4}-\\d{2}-\\d{2}" placeholder="P-2027-05-03"></label><label>Ajustes comprometidos<input id="pi-pl" type="number" min="1" value="5"></label><label>Ajustes verificados (planeador, cuaderno, aula)<input id="pi-ev" type="number" min="0" value="4"></label></div>`,
+    transversal: `<div class="row"><label>Proyecto<select id="tr-p">${(DATOS.transversales?.proyectos || []).map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></label><label>Fases con evidencia fechada (0–5)<input id="tr-f" type="number" min="0" max="5" value="3"></label></div><p class="small muted">Fases: INSPIRA · DISEÑA · EXPLORA · CREA · EVALÚA.</p>`,
+    encuesta: `<div class="row"><label>Estudiantes que respondieron<input id="en-n" type="number" min="1" value="20"></label><label>Escala<select id="en-esc"><option value="5">Likert 1–5 (3° en adelante)</option><option value="3">Caritas 1–3 (Transición a 2°)</option></select></label><label>Promedio de los 10 ítems<input id="en-p" type="number" step="0.01" min="1" max="5" value="4.1"></label></div><p class="small muted">Se reporta solo con 10 o más respuestas. Anónima, aplicada sin el docente presente.</p>`,
+  };
+  const tipos = [['planeador', 'Planeador'], ['ejecucion', 'Ejecución'], ['cuaderno', 'Cuadernos'], ['observacion', 'Observación de aula'], ['resultado', 'Pre/Post'], ['piar', 'PIAR'], ['transversal', 'Proyecto transversal'], ['encuesta', 'Encuesta estudiantil']];
+  return `${st.cerrados.includes(st.anio) ? `<div class="banner">El año ${st.anio} está cerrado y solo se puede consultar.</div>` : ''}
+  <section class="card"><h1>Registrar evidencia · ${st.anio}</h1>
+  <div class="row">${tipos.map(([k, t]) => `<button class="${k === tipo ? '' : 'ghost'}" data-tipo="${k}" type="button">${t}</button>`).join('')}</div>
+  <form class="reg" id="freg">${comunes}<label class="small muted" style="display:grid;gap:4px">Enlace a la evidencia (foto, carpeta Drive, PDF)<input id="r-url" type="url" placeholder="https://"></label>${esp[tipo]}<div class="row"><button type="submit">Guardar registro</button></div></form></section>`;
+}
+function leerSeg(prefix, n) { return Array.from({ length: n }, (_, i) => { const e = document.querySelector(`input[name="${prefix}${i}"]:checked`); return e ? Number(e.value) : null; }); }
+function parseRes(t) { return t.split(/\n+/).map(l => l.split(/[;,\t ]+/).map(Number)).filter(a => a.length >= 2 && a.every(Number.isFinite)).map(([pre, post]) => ({ pre, post })); }
+
+async function onSubmitReg(e) {
+  e.preventDefault();
+  const tipo = st.tipoReg || 'planeador';
+  const base = { anio: st.anio, periodo: Number($('#r-per').value), tipo, docente: $('#r-doc').value.trim(), grado: $('#r-grado').value, area: $('#r-area').value, semana: Number($('#r-sem').value), evidencia_url: $('#r-url').value || null };
+  let payload;
+  if (tipo === 'planeador') payload = { a_tiempo: $('#p-tiempo').value === '1', dba_total: +$('#p-dbat').value, dba_cubiertos: +$('#p-dbac').value, rubrica: leerSeg('r1-', 8) };
+  if (tipo === 'ejecucion') payload = { semanas_planeadas: +$('#e-pl').value, semanas_ejecutadas: +$('#e-ej').value };
+  if (tipo === 'cuaderno') payload = { semilla: $('#c-seed').value, muestra: st.muestra || [], puntajes: leerSeg('r2-', 5).filter(x => x != null) };
+  if (tipo === 'observacion') {
+    const a = leerSeg('t1-', 9), b = leerSeg('t2-', 9);
+    payload = { con_aviso: $('#o-aviso').value === '1', obs1: { observador: $('#o-1').value, puntajes: a }, obs2: $('#o-2').value && b.every(x => x != null) ? { observador: $('#o-2').value, puntajes: b } : null };
+    if (payload.obs2) { const k = I.kappaPonderado(a, b, 5); toast(`κ ponderado = ${k.toFixed(2)} ${k < I.KAPPA_MIN ? '· no cuenta, repetir' : '· válida'}`); }
+  }
+  if (tipo === 'resultado') { const est = parseRes($('#res-txt').value); if (!est.length) { toast('Pegue al menos un par pre;post'); return; } payload = { estudiantes: est }; }
+  if (tipo === 'piar') payload = { codigo: $('#pi-cod').value.toUpperCase(), ajustes_planeados: +$('#pi-pl').value, ajustes_evidenciados: +$('#pi-ev').value };
+  if (tipo === 'transversal') payload = { proyecto: $('#tr-p').value, fases_evidenciadas: +$('#tr-f').value };
+  if (tipo === 'encuesta') { const n = +$('#en-n').value; if (n < 10) toast('Menos de 10 respuestas: se guarda pero no cuenta en el índice'); payload = { n, escala: +$('#en-esc').value, promedio: +$('#en-p').value }; }
+  if (await enviar({ ...base, payload })) { toast('Registro guardado'); st.muestra = null; render(); }
+}
+
+function vComparar() {
+  const filas = st.anios.map(a => ({ a, r: I.calcularTodo(st.regs[a] || []) })).filter(x => x.r.filas.length);
+  const comps = Object.keys(I.PESOS);
+  const prom = (r, k) => { const v = r.filas.map(f => f.componentes[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b) / v.length : null; };
+  const lines = [['ICD institucional', r => r.institucional], ...comps.map(k => [NOMBRES[k] || k, r => prom(r, k)])];
+  const W = 640, H = 220, bw = Math.min(70, (W - 80) / Math.max(1, filas.length) - 20);
+  const y = v => H - 30 - (v ?? 0) * (H - 60) / 100;
+  return `${bannerDemo()}<section class="card"><h1>Año vs año</h1><p class="small muted">Mismos indicadores, misma fórmula (v${I.VERSION}). Una diferencia de 5 puntos o más se considera cambio real; menos, estable. Cada cierre anual congela el año y lo agrega aquí automáticamente.</p>
+  ${filas.length < 2 ? '<p class="banner">Se necesitan al menos dos años con datos. El primer comparativo real aparecerá al cerrar 2027 y registrar 2028.</p>' : ''}
+  <div class="tbl"><svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px" role="img" aria-label="ICD institucional por año">
+   ${[0, 70, 85, 100].map(v => `<line x1="40" x2="${W - 10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="6" y="${y(v) + 4}">${v}</text>`).join('')}
+   ${filas.map((x, i) => { const v = x.r.institucional, cx = 70 + i * ((W - 80) / filas.length); return `<rect x="${cx}" y="${y(v)}" width="${bw}" height="${H - 30 - y(v)}" rx="3" fill="var(--accent)"/><text x="${cx}" y="${H - 10}">${x.a}</text><text x="${cx}" y="${y(v) - 6}" style="fill:var(--ink)">${f1(v)}</text>`; }).join('')}
+  </svg></div>
+  <div class="tbl"><table><thead><tr><th>Indicador</th>${filas.map(x => `<th>${x.a}</th>`).join('')}<th>Δ último año</th><th>Tendencia</th></tr></thead><tbody>
+  ${lines.map(([n, fn]) => { const v = filas.map(x => fn(x.r)); const d = v.length > 1 && v.at(-1) != null && v.at(-2) != null ? v.at(-1) - v.at(-2) : null; const t = d == null ? '<span class="pill gris">—</span>' : d >= 5 ? '<span class="pill verde">mejora</span>' : d <= -5 ? '<span class="pill rojo">retroceso</span>' : '<span class="pill gris">estable</span>'; return `<tr><td>${esc(n)}</td>${v.map(x => `<td class="n">${f1(x)}</td>`).join('')}<td class="n">${d == null ? '—' : (d > 0 ? '+' : '') + f1(d)}</td><td>${t}</td></tr>`; }).join('')}
+  </tbody></table></div></section>
+  <section class="card"><h2>Docentes: comparación individual</h2><div class="tbl"><table><thead><tr><th>Docente</th>${filas.map(x => `<th>${x.a}</th>`).join('')}</tr></thead><tbody>
+  ${[...new Set(filas.flatMap(x => x.r.filas.map(f => f.docente)))].sort().map(d => `<tr><td>${esc(d)}</td>${filas.map(x => { const f = x.r.filas.find(z => z.docente === d); return `<td>${f ? `<span class="mono">${f1(f.icd)}</span> ${pill(f.semaforo)}` : '—'}</td>`; }).join('')}</tr>`).join('')}
+  </tbody></table></div></section>`;
+}
+
+function vNormativa() {
+  const n = DATOS.normativa || { normas: [] };
+  const hoy = Date.now();
+  return `<section class="card"><h1>Registro normativo</h1><p class="small muted">Lo mantiene el agente investigador-normativo: revisión automática el día 1 de cada mes y verificación completa cada octubre. Cada cambio con impacto llega como propuesta para aprobación de coordinación. Última actualización del registro: <span class="mono">${esc(n.actualizado || '—')}</span>.</p>
+  <div class="tbl"><table><thead><tr><th>Norma</th><th>Tema</th><th>Qué obliga en la planeación</th><th>Evidencia que pide un auditor</th><th>Verificada</th></tr></thead><tbody>
+  ${n.normas.map(x => { const dias = (hoy - Date.parse(x.ultima_verificacion)) / 864e5; return `<tr><td><b>${esc(x.norma)}</b><br>${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">fuente oficial</a>` : ''} ${x.estado && x.estado !== 'vigente' ? `<span class="chip">${esc(x.estado)}</span>` : ''}</td><td>${esc(x.tema)}</td><td>${esc(x.obliga)}</td><td>${esc(x.evidencia)}</td><td class="mono small">${esc(x.ultima_verificacion)}${dias > 365 ? ' <span class="pill rojo">revisar</span>' : ''}</td></tr>`; }).join('')}
+  </tbody></table></div></section>
+  ${n.novedades?.length ? `<section class="card"><h2>Novedades y pendientes de verificación</h2><ul>${n.novedades.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}`;
+}
+
+function vAgentes() {
+  const ag = DATOS.agentes || [];
+  const cal = DATOS.calendario?.ciclos || [];
+  return `<section class="card"><h1>Equipo de agentes</h1><p class="small muted">Cada agente es un especialista con instrucciones propias en el repositorio (.claude/agents). El orquestador los coordina; ningún cambio se aplica sin aprobación humana.</p>
+  <div class="grid">${ag.map(a => `<div class="agent"><b>${esc(a.nombre)}</b><span class="small">${esc(a.rol)}</span><span class="small muted">${esc(a.cuando)}</span></div>`).join('')}</div></section>
+  <section class="card"><h2>Qué se revisa, cuándo y quién</h2><div class="tbl"><table><thead><tr><th>Cuándo</th><th>Qué</th><th>Quién</th><th>Modo</th></tr></thead><tbody>
+  ${cal.map(c => `<tr><td class="small">${esc(c.cuando)}</td><td>${esc(c.que)}${c.skill ? ` <span class="chip">${esc(c.skill)}</span>` : ''}</td><td class="small">${esc(c.quien)}</td><td>${c.auto ? '<span class="pill verde">automático</span>' : '<span class="pill gris">humano + app</span>'}</td></tr>`).join('')}
+  </tbody></table></div></section>
+  <section class="card" id="sugerir"><h2>Sugerir una mejora al aplicativo</h2>
+  <p class="small muted">Cada sugerencia se convierte en una tarea para el agente de mejora continua, que la implementa, la prueba y la propone para aprobación. Describa qué le hace perder tiempo o qué le falta. No incluya datos de estudiantes.</p>
+  <form id="fsug" class="reg"><textarea id="sug-txt" required minlength="10" placeholder="Ej.: que el planeador se pueda duplicar de la semana anterior"></textarea><div class="row"><button type="submit">Enviar sugerencia</button></div></form>
+  ${(st.sugerencias || []).length ? `<p class="small muted">Enviadas desde este navegador: ${st.sugerencias.length}</p>` : ''}</section>
+  <section class="card"><h2>Reglas que evitan el sesgo</h2><ul>${(DATOS.indicadores?.reglas_bloqueo || []).map(r => `<li>${esc(r)}</li>`).join('')}<li>Cuadernos sorteados con semilla registrada y revisados a ciegas por un coordinador de otra área.</li><li>Puntajes de observación corregidos por la indulgencia o severidad sistemática de cada observador.</li><li>Ganancia de aprendizaje con contracción hacia la media del colegio, para que un grupo pequeño no premie ni castigue por azar.</li><li>Evidencias con marca de tiempo del servidor y huella SHA-256: no se pueden editar después.</li></ul></section>`;
+}
+
+function vDatos() {
+  return `${bannerDemo()}<section class="two">
+  <div class="card"><h2>Años de planeación</h2><div class="tbl"><table><thead><tr><th>Año</th><th>Registros</th><th>Estado</th><th></th></tr></thead><tbody>
+  ${st.anios.map(a => `<tr><td class="mono">${a}</td><td class="n">${(st.regs[a] || []).length}</td><td>${st.cerrados.includes(a) ? '<span class="pill gris">cerrado</span>' : '<span class="pill verde">abierto</span>'}</td><td>${st.cerrados.includes(a) ? '' : `<button class="ghost" data-cerrar="${a}">Cerrar año</button>`}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="row"><button id="nuevoAnio">Abrir año ${Math.max(...st.anios) + 1}</button></div>
+  <div id="confirmar"></div>
+  <p class="small muted">Cerrar un año lo congela (solo lectura) y lo vuelve línea base del siguiente. El cierre automático corre el 1 de diciembre; la apertura del año siguiente, el 15 de octubre.</p></div>
+  <div class="card"><h2>Exportar e importar</h2><p class="small">El JSON exportado es el insumo de los agentes de auditoría y del comparativo interanual en GitHub.</p>
+  <div class="row"><button id="exp" class="ghost">Copiar JSON del año ${st.anio}</button><label class="small muted" style="display:grid;gap:4px">Importar JSON<input type="file" id="imp" accept="application/json"></label></div>
+  <textarea id="expTxt" hidden readonly></textarea>
+  ${st.demo ? `<button id="borrarDemo" class="ghost">Borrar datos de ejemplo y empezar con datos reales</button>` : ''}</div></section>`;
+}
+
+function render() {
+  pintarTabs();
+  $('#selAnio').innerHTML = st.anios.map(a => `<option ${a === st.anio ? 'selected' : ''}>${a}</option>`).join('');
+  $('#selPer').value = st.periodo;
+  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, agentes: vAgentes, datos: vDatos }[st.tab];
+  $('#main').innerHTML = v();
+  wire();
+}
+function wire() {
+  document.querySelectorAll('[data-doc]').forEach(el => { const go = () => { st.docSel = el.dataset.doc; render(); }; el.onclick = go; el.onkeydown = e => { if (e.key === 'Enter') go(); }; });
+  const vb = $('#volver'); if (vb) vb.onclick = () => { st.docSel = null; render(); };
+  document.querySelectorAll('[data-tipo]').forEach(b => b.onclick = () => { st.tipoReg = b.dataset.tipo; render(); });
+  const fr = $('#freg'); if (fr) fr.onsubmit = onSubmitReg;
+  const cs = $('#c-sortear'); if (cs) cs.onclick = () => { const seed = $('#c-seed').value + '|' + $('#r-grado').value + '|' + $('#r-area').value; const n = +$('#c-n').value; st.muestra = I.sortear(seed, n, I.tamanoMuestra(n)); $('#c-seed').value = seed; $('#c-res').textContent = 'Muestra (números de lista): ' + st.muestra.join(', '); };
+  const rt = $('#res-txt'); if (rt) rt.oninput = () => { const g = parseRes(rt.value).filter(e => e.pre <= 90).map(e => I.hake(e.pre, e.post)).filter(x => x != null); $('#res-g').textContent = g.length ? `g promedio: ${(g.reduce((a, b) => a + b) / g.length).toFixed(2)} (${g.length} estudiantes)` : 'g promedio: —'; };
+  const na = $('#nuevoAnio'); if (na) na.onclick = async () => { const a = Math.max(...st.anios) + 1; if (st.api) await fetch('/api/anios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ anio: a }) }); st.anios.push(a); st.regs[a] = []; guardar(); toast(`Año ${a} abierto`); render(); };
+  document.querySelectorAll('[data-cerrar]').forEach(b => b.onclick = () => { const a = Number(b.dataset.cerrar); $('#confirmar').innerHTML = `<div class="banner">¿Cerrar ${a}? Quedará en solo lectura de forma permanente. <button id="siCerrar">Sí, cerrar ${a}</button> <button class="ghost" id="noCerrar">Cancelar</button></div>`; $('#noCerrar').onclick = () => $('#confirmar').innerHTML = ''; $('#siCerrar').onclick = async () => { if (st.api) await fetch(`/api/anios/${a}/cerrar`, { method: 'POST' }); st.cerrados.push(a); guardar(); toast(`Año ${a} cerrado`); render(); }; });
+  const ex = $('#exp'); if (ex) ex.onclick = async () => { const t = JSON.stringify({ anio: { anio: st.anio, cerrado: st.cerrados.includes(st.anio) ? 1 : 0 }, registros: regsActuales() }, null, 1); const ta = $('#expTxt'); ta.value = t; ta.hidden = false; try { await navigator.clipboard.writeText(t); toast('JSON copiado'); } catch (e) { ta.select(); toast('Seleccionado: copie con Ctrl+C'); } };
+  const im = $('#imp'); if (im) im.onchange = () => { const f = im.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { const j = JSON.parse(rd.result); const a = j.anio?.anio || st.anio; st.regs[a] = j.registros || []; if (!st.anios.includes(a)) st.anios.push(a); st.demo = false; guardar(); toast(`${st.regs[a].length} registros importados en ${a}`); render(); } catch (e) { toast('El archivo no es un JSON válido del sistema'); } }; rd.readAsText(f); };
+  const fs = $('#fsug'); if (fs) fs.onsubmit = async e => { e.preventDefault(); const texto = $('#sug-txt').value.trim();
+    if (st.api) { const r = await fetch('/api/sugerencias', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto, pantalla: st.tab }) }); const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo enviar'); return; } }
+    (st.sugerencias ||= []).push({ texto, fecha: new Date().toISOString() }); guardar(); toast(st.api ? 'Sugerencia enviada al equipo de mejora' : 'Sugerencia guardada en este navegador (se envía cuando la app esté en Cloudflare)'); render(); };
+  const bd = $('#borrarDemo'); if (bd) bd.onclick = () => { st.regs = { 2027: [] }; st.anios = [2027]; st.cerrados = []; st.anio = 2027; st.demo = false; guardar(); toast('Datos de ejemplo borrados'); render(); };
+}
+
+(async function inicio() {
+  st.api = await detectarApi();
+  if (st.api) {
+    st.demo = false;
+    const a = await (await fetch('/api/anios')).json();
+    st.anios = a.map(x => x.anio); st.cerrados = a.filter(x => x.cerrado).map(x => x.anio);
+    st.anio = st.anios.includes(new Date().getFullYear()) ? new Date().getFullYear() : st.anios.at(-1);
+    await cargarAnio(st.anio);
+    for (const y of st.anios) if (y !== st.anio) await cargarAnio(y);
+  } else if (!cargarLocal()) {
+    st.regs = { 2026: demo(2026, -0.06), 2027: demo(2027, 0) }; st.anios = [2026, 2027]; st.cerrados = [2026]; st.anio = 2027; st.demo = true;
+  }
+  render();
+})();
+</script>

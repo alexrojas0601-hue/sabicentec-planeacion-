@@ -10,7 +10,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: node --test scripts/pruebas.test.mjs && node scripts/escaneo-privacidad.mjs
-      - run: node scripts/empaquetar-web.mjs    # copia motor de indicadores y datos a /web
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install openpyxl && npm install --no-save docx@9
+      - run: npm run documentos               # Kit de Auditoría (Word) y Tablero (Excel) → web/descargas
+      - run: node scripts/empaquetar-web.mjs  # app + motor + datos + lista de descargas
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

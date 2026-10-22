@@ -6,6 +6,7 @@ from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.comments import Comment
 from openpyxl.utils import get_column_letter as L
+from openpyxl.workbook.properties import CalcProperties
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else 'Tablero_Indicadores_CENTEC.xlsx'
 IND = json.load(open('../../data/indicadores.json'))
@@ -86,16 +87,20 @@ cols = [
 ]
 head(R, 1, [c[0] for c in cols], [c[1] for c in cols])
 R.freeze_panes = 'E2'
-ej = [
- (2027, 1, 'EJEMPLO Docente A', 'Transición', 10, 10, 10, 10, 6, 6, 21, 2.6, 4.3, 0.78, 2, 0.48, 22, 6, 6, 5, 1, 4.5, 20),
- (2027, 1, 'EJEMPLO Docente B', '3° Integrada', 10, 8, 10, 8, 6, 5, 15, 1.8, 3.4, 0.66, 2, 0.31, 26, 4, 3, 3, 1, 3.9, 25),
- (2027, 1, 'EJEMPLO Docente C', '8° Matemáticas', 10, 6, 10, 5, 6, 3, 10, 1.2, 2.6, '', 1, 0.15, 30, '', '', 2, 1, 3.2, 28),
- (2027, 2, 'EJEMPLO Docente A', 'Transición', 9, 9, 9, 9, 6, 6, 22, 2.8, 4.5, 0.81, 2, 0.52, 22, 6, 6, 5, 1, '', ''),
- (2027, 2, 'EJEMPLO Docente B', '3° Integrada', 9, 9, 9, 9, 6, 6, 18, 2.2, 3.8, 0.52, 2, 0.35, 26, 4, 4, 4, 1, '', ''),
- (2027, 2, 'EJEMPLO Docente C', '8° Matemáticas', 9, 8, 9, 7, 6, 5, 14, 1.8, 3.1, 0.7, 2, 0.24, 30, '', '', 3, 1, '', ''),
- (2028, 1, 'EJEMPLO Docente B', '3° Integrada', 10, 10, 10, 10, 6, 6, 20, 2.5, 4.0, 0.74, 2, 0.41, 25, 4, 4, 4, 1, 4.2, 24),
- (2028, 1, 'EJEMPLO Docente C', '8° Matemáticas', 10, 9, 10, 9, 6, 6, 17, 2.1, 3.5, 0.69, 2, 0.30, 29, '', '', 4, 1, 3.8, 27),
-]
+import random
+random.seed(2027)
+ej = []
+_doc = [('EJEMPLO Docente A','Transición',0.92),('EJEMPLO Docente B','1° Integrada',0.78),('EJEMPLO Docente C','3° Integrada',0.62),('EJEMPLO Docente D','5° Integrada',0.88),
+        ('EJEMPLO Docente E','Inglés primaria',0.72),('EJEMPLO Docente F','Matemáticas 6°–9°',0.48),('EJEMPLO Docente G','Lenguaje 6°–11°',0.84),('EJEMPLO Docente H','Ciencias 6°–11°',0.68)]
+for anio, mej in ((2027, 0), (2028, 0.06)):
+    for per in ((1, 2) if anio == 2027 else (1,)):
+        for nom, gr, p in _doc:
+            p = min(0.97, p + mej); j = lambda: random.uniform(-0.08, 0.08)
+            ej.append((anio, per, nom, gr, 10, round(10*min(1,p+0.1+j())), 10, round(10*min(1,p+0.15+j())), 6, round(6*min(1,p+0.1+j())),
+                       round(24*min(1,p+j())), round(3*min(1,p+j()),1), round(1+4*min(1,p+j()),1), round(min(0.95,0.5+0.4*p+j()),2), 2,
+                       round(max(0.05,0.1+0.45*p+j()),2), random.randint(20,30), 6 if nom[-1] in 'ADG' else '', round(6*min(1,p+0.05)) if nom[-1] in 'ADG' else '',
+                       round(5*min(1,p+0.1)), 1, round(2.6+2.2*p,1) if per == 1 else '', random.randint(18,28) if per == 1 else ''))
+
 NROW = 300
 for r in range(2, NROW + 2):
     v = ej[r - 2] if r - 2 < len(ej) else None
@@ -202,4 +207,157 @@ for r in range(2, 201):
     for j in range(1, 11):
         c = Le.cell(r, j); c.border = B; c.font = F(color='0000FF') if j != 5 else F(); c.alignment = Alignment(wrap_text=True, vertical='top')
         if j != 5: c.fill = INP
+# ---------- DASHBOARD (primera hoja, lectura fácil) ----------
+from openpyxl.chart import BarChart, DoughnutChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.series import DataPoint
+from openpyxl.chart.shapes import GraphicalProperties
+DB = wb.create_sheet('Dashboard', 0)
+wb.active = 0
+DB.sheet_view.showGridLines = False
+for col, w in zip('ABCDEFGHIJKLMNOPQRSTU', [2] + [11]*12 + [3, 3, 30, 10, 12, 10, 10, 10]):
+    DB.column_dimensions[col].width = w
+G, Y, RD, GR = '2E9E5B', 'E8A317', 'D2463A', '9AA5AD'
+GL, YL, RL, GRL = 'DDF2E5', 'FCEFCF', 'F8DCD8', 'E9ECEE'
+big = lambda sz, color='1A1A1A', bold=True: Font(name='Arial', size=sz, bold=bold, color=color)
+center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+left = Alignment(horizontal='left', vertical='center', wrap_text=True)
+def box(rng, fill=None, text=None, font=None, align=center):
+    DB.merge_cells(rng); c = DB[rng.split(':')[0]]
+    if text is not None: c.value = text
+    if font: c.font = font
+    c.alignment = align
+    if fill:
+        for row in DB[rng]:
+            for x in row: x.fill = PatternFill('solid', fgColor=fill)
+    return c
+box('B1:M1', None, '¿CÓMO VAMOS CON LA PLANEACIÓN?', big(22, NAVY))
+box('B2:M2', None, 'Tablero de lectura fácil · CENTEC Córdoba · Los números salen solos de la hoja «Registro»', big(11, '555555', False))
+DB['B4'] = 'Año que quiere ver:'; DB['B4'].font = big(11); DB.merge_cells('B4:D4')
+DB['E4'] = 2027; DB['E4'].fill = INP; DB['E4'].font = big(14, '0000FF'); DB['E4'].alignment = center
+DB['G4'] = 'Período (escriba 0 para todo el año):'; DB['G4'].font = big(11); DB.merge_cells('G4:J4')
+DB['K4'] = 0; DB['K4'].fill = INP; DB['K4'].font = big(14, '0000FF'); DB['K4'].alignment = center
+DB['L4'] = '← cambie solo las casillas amarillas'; DB['L4'].font = Font(name='Arial', size=9, italic=True, color='777777'); DB.merge_cells('L4:M4')
+T['B3'] = '=Dashboard!$E$4'; T['B4'] = '=Dashboard!$K$4'; T['B3'].fill = PatternFill(fill_type=None); T['B4'].fill = PatternFill(fill_type=None)
+T['C3'] = '← se cambia en la hoja Dashboard'; T['C3'].font = F(italic=True, color='777777')
+# Nota del colegio
+box('B6:E6', NAVY, 'NOTA DEL COLEGIO (de 0 a 100)', Font(name='Arial', size=11, bold=True, color='FFFFFF'))
+c = box('B7:E11', 'F4F6FA', '=IF(ISNUMBER(Tablero!B6),ROUND(Tablero!B6,0),"Sin datos")', big(48, NAVY)); c.number_format = '0'
+msg = ('=IF(NOT(ISNUMBER(Tablero!B6)),"Todavía no hay datos suficientes para este año. Registre evidencias en la hoja Registro.",'
+       'IF(Tablero!B6>=85,"VERDE. El colegio cumple muy bien lo que planeó. Hay que mantenerlo y compartir lo que funciona.",'
+       'IF(Tablero!B6>=70,"AMARILLO. El colegio cumple, pero le falta. Revise abajo qué es lo que más hay que mejorar.",'
+       '"ROJO. Lo planeado no se está cumpliendo. Se necesita un plan de mejora inmediato.")))')
+box('F6:M11', 'F4F6FA', msg, big(15, '1A1A1A'), left)
+for col, color in [('VERDE', GL), ('AMARILLO', YL), ('ROJO', RL)]:
+    DB.conditional_formatting.add('F6:M11', FormulaRule(formula=[f'LEFT($F$6,{len(col)})="{col}"'], fill=PatternFill('solid', fgColor=color)))
+    DB.conditional_formatting.add('B7:E11', FormulaRule(formula=[f'LEFT($F$6,{len(col)})="{col}"'], fill=PatternFill('solid', fgColor=color)))
+# Semáforo en 4 tarjetas
+box('B13:M13', None, '¿CUÁNTOS DOCENTES ESTÁN EN CADA COLOR?', big(13, NAVY), left)
+cards = [('B', 'D', G, GL, 'Verde', 'cumplen muy bien'), ('E', 'G', Y, YL, 'Amarillo', 'cumplen a medias'), ('H', 'J', RD, RL, 'Rojo', 'no cumplen'), ('K', 'M', GR, GRL, 'Gris', 'faltan datos')]
+for c1, c2, col, light, nombre, txt in cards:
+    box(f'{c1}14:{c2}14', col, nombre.upper(), Font(name='Arial', size=11, bold=True, color='FFFFFF'))
+    cnt = f'=COUNTIF(Tablero!$C$26:$C$65,"{nombre}")' if nombre != 'Gris' else '=COUNTIFS(Tablero!$A$26:$A$65,"<>",Tablero!$B$26:$B$65,"Sin datos")'
+    box(f'{c1}15:{c2}17', light, cnt, big(34, col))
+    box(f'{c1}18:{c2}18', light, txt, big(10, '333333', False))
+box('B19:M19', None, '=IFERROR("De cada 10 docentes, "&ROUND(10*COUNTIF(Tablero!$C$26:$C$65,"Verde")/COUNTA(Tablero!$A$26:$A$65),0)&" están en verde y "&ROUND(10*COUNTIF(Tablero!$C$26:$C$65,"Rojo")/COUNTA(Tablero!$A$26:$A$65),0)&" están en rojo.","")', big(12, '333333', False), left)
+
+# ---- Datos de apoyo para los gráficos (columna P en adelante, visibles) ----
+DB['P6'] = 'DATOS DE LOS GRÁFICOS (no editar)'; DB['P6'].font = big(10, '777777')
+for j, h in enumerate(['Docente', 'Verde', 'Amarillo', 'Rojo'], 16):
+    x = DB.cell(7, j, h); x.font = H; x.fill = HF
+ND = 30
+for i in range(ND):
+    r = 8 + i; tr = 26 + i
+    DB.cell(r, 16, f'=IF(Tablero!A{tr}="","",SUBSTITUTE(Tablero!A{tr},"EJEMPLO ",""))')
+    for j, nombre in zip((17, 18, 19), ('Verde', 'Amarillo', 'Rojo')):
+        x = DB.cell(r, j, f'=IF(Tablero!C{tr}="{nombre}",ROUND(Tablero!B{tr},0),0)'); x.number_format = '0;;'
+    for j in range(16, 20): DB.cell(r, j).font = F(color='777777')
+# conteo para la dona
+for j, h in enumerate(['Estado', 'Docentes'], 21):
+    x = DB.cell(7, j, h); x.font = H; x.fill = HF
+DB.column_dimensions['U'].width = 12; DB.column_dimensions['V'].width = 10
+for i, (nombre, ref) in enumerate([('Verde', 'B15'), ('Amarillo', 'E15'), ('Rojo', 'H15'), ('Gris', 'K15')]):
+    DB.cell(8 + i, 21, nombre); DB.cell(8 + i, 22, f'={ref}')
+# componentes
+short = ['Planeó a tiempo', 'Cumplió las semanas', 'Enseñó los DBA', 'Calidad del planeador', 'Cuadernos', 'Clase observada', 'Lo que aprendieron', 'Inclusión (PIAR)', 'Proyectos transversales', 'Opinión de estudiantes']
+DB['U14'] = 'Componente'; DB['V14'] = 'Verde'; DB['W14'] = 'Amarillo'; DB['X14'] = 'Rojo'; DB['Y14'] = 'Valor'
+for x in ('U14', 'V14', 'W14', 'X14', 'Y14'): DB[x].font = H; DB[x].fill = HF
+DB.column_dimensions['W'].width = 10; DB.column_dimensions['X'].width = 10; DB.column_dimensions['Y'].width = 10
+for i, nm in enumerate(short):
+    r = 15 + i; tr = 13 + i
+    DB.cell(r, 21, nm); DB.cell(r, 25, f'=IF(ISNUMBER(Tablero!B{tr}),ROUND(Tablero!B{tr},0),"")')
+    DB.cell(r, 22, f'=IF(AND(ISNUMBER(Y{r}),N(Y{r})>=85),Y{r},0)').number_format = '0;;'
+    DB.cell(r, 23, f'=IF(AND(ISNUMBER(Y{r}),N(Y{r})>=70,N(Y{r})<85),Y{r},0)').number_format = '0;;'
+    DB.cell(r, 24, f'=IF(AND(ISNUMBER(Y{r}),N(Y{r})<70),Y{r},0)').number_format = '0;;'
+    for j in range(21, 26): DB.cell(r, j).font = F(color='777777')
+# años
+DB['U27'] = 'Año'; DB['V27'] = 'Nota del colegio'
+for x in ('U27', 'V27'): DB[x].font = H; DB[x].fill = HF
+for i in range(5):
+    col = 'BCDEF'[i]
+    DB.cell(28 + i, 21, f"='Año vs año'!{col}4"); x = DB.cell(28 + i, 22, f"=IF(ISNUMBER('Año vs año'!{col}5),ROUND('Año vs año'!{col}5,0),0)"); x.number_format = '0;;'
+
+def estilo_barras(ch, cats, data_ref, colores, titulo, alto, ancho, horizontal=True, stacked=True):
+    ch.type = 'bar' if horizontal else 'col'
+    if stacked: ch.grouping = 'stacked'; ch.overlap = 100
+    ch.title = titulo; ch.style = 10; ch.height = alto; ch.width = ancho
+    ch.add_data(data_ref, titles_from_data=True); ch.set_categories(cats)
+    for sr, col in zip(ch.series, colores):
+        sr.graphicalProperties.solidFill = col; sr.graphicalProperties.line.solidFill = col
+        sr.dLbls = DataLabelList(); sr.dLbls.showVal = True; sr.dLbls.numFmt = '0;;'
+        sr.dLbls.showSerName = False; sr.dLbls.showCatName = False; sr.dLbls.showLegendKey = False
+    ch.y_axis.scaling.min = 0; ch.y_axis.scaling.max = 100; ch.y_axis.majorGridlines = None
+    ch.y_axis.delete = True; ch.x_axis.delete = False; ch.legend.position = 'b'
+    if horizontal: ch.x_axis.scaling.orientation = 'maxMin'
+    ch.gapWidth = 40
+    return ch
+
+box('B21:M21', None, 'NOTA DE CADA DOCENTE (de 0 a 100) · el color dice cómo va', big(13, NAVY), left)
+ch1 = estilo_barras(BarChart(), Reference(DB, min_col=16, min_row=8, max_row=8 + 11), Reference(DB, min_col=17, max_col=19, min_row=7, max_row=8 + 11), [G, Y, RD], None, 10, 17)
+DB.add_chart(ch1, 'B23')
+box('B43:M43', None, '=IF(COUNTA(Tablero!A26:A65)>12,"Hay más de 12 docentes: el gráfico muestra los 12 primeros. La lista completa está en la hoja Tablero.","El gráfico muestra hasta 12 docentes; la lista completa está en la hoja Tablero.")', Font(name='Arial', size=9, italic=True, color='777777'), left)
+
+box('B45:F45', None, 'DOCENTES POR COLOR', big(13, NAVY), left)
+dn = DoughnutChart(); dn.add_data(Reference(DB, min_col=22, min_row=7, max_row=11), titles_from_data=True); dn.set_categories(Reference(DB, min_col=21, min_row=8, max_row=11))
+dn.holeSize = 55; dn.height = 8; dn.width = 9; dn.title = None
+for k, col in enumerate([G, Y, RD, GR]):
+    pt = DataPoint(idx=k); pt.graphicalProperties.solidFill = col; dn.series[0].dPt.append(pt)
+dn.series[0].dLbls = DataLabelList(); dn.series[0].dLbls.showVal = True; dn.series[0].dLbls.showCatName = False; dn.series[0].dLbls.showSerName = False; dn.series[0].dLbls.showLegendKey = False; dn.series[0].dLbls.showPercent = False; dn.series[0].dLbls.numFmt = '0;;'
+dn.legend.position = 'r'
+DB.add_chart(dn, 'B47')
+
+box('H44:M44', None, '¿EN QUÉ SOMOS BUENOS Y QUÉ FALTA?', big(13, NAVY), left)
+vals = 'Dashboard!$Y$15:$Y$24'; nms = 'Dashboard!$U$15:$U$24'
+box('H45:M46', GL, f'=IFERROR("Lo que mejor hacemos: "&INDEX({nms},MATCH(MAX({vals}),{vals},0))&" ("&MAX({vals})&" de 100)","Sin datos")', big(12, '1B5E35'), left)
+box('H47:M48', RL, f'=IFERROR("Lo que más debemos mejorar: "&INDEX({nms},MATCH(MIN({vals}),{vals},0))&" ("&MIN({vals})&" de 100)","Sin datos")', big(12, '8A2A20'), left)
+box('H49:M50', YL, '=IFERROR("Componentes por debajo de 70: "&COUNTIF(Dashboard!$Y$15:$Y$24,"<70")&" de "&COUNT(Dashboard!$Y$15:$Y$24),"")', big(12, '6B4A00'), left)
+box('H51:M53', 'F4F6FA', 'Meta de cada componente: 85 o más (verde). Entre 70 y 84 es amarillo. Menos de 70 es rojo.', big(10, '333333', False), left)
+
+box('B64:M64', None, '¿QUÉ PARTE DEL TRABAJO VA MEJOR Y CUÁL PEOR? (promedio del colegio, de 0 a 100)', big(13, NAVY), left)
+ch2 = estilo_barras(BarChart(), Reference(DB, min_col=21, min_row=15, max_row=24), Reference(DB, min_col=22, max_col=24, min_row=14, max_row=24), [G, Y, RD], None, 9, 17)
+DB.add_chart(ch2, 'B66')
+
+box('B86:M86', None, '¿VAMOS MEJORANDO AÑO TRAS AÑO? (nota del colegio)', big(13, NAVY), left)
+ch3 = BarChart(); ch3.type = 'col'; ch3.style = 10; ch3.height = 8; ch3.width = 17; ch3.title = None
+ch3.add_data(Reference(DB, min_col=22, min_row=27, max_row=32), titles_from_data=True); ch3.set_categories(Reference(DB, min_col=21, min_row=28, max_row=32))
+ch3.series[0].graphicalProperties.solidFill = NAVY
+ch3.series[0].dLbls = DataLabelList(); ch3.series[0].dLbls.showVal = True; ch3.series[0].dLbls.numFmt = '0;;'; ch3.series[0].dLbls.showSerName = False; ch3.series[0].dLbls.showCatName = False; ch3.series[0].dLbls.showLegendKey = False
+ch3.y_axis.scaling.min = 0; ch3.y_axis.scaling.max = 100; ch3.y_axis.delete = True; ch3.y_axis.majorGridlines = None; ch3.legend = None; ch3.gapWidth = 60
+DB.add_chart(ch3, 'B88')
+box('B104:M105', 'F4F6FA', "=IF('Año vs año'!H5=\"—\",\"Cuando haya dos años con datos, aquí verá si el colegio mejoró, se mantuvo o retrocedió.\",\"Comparado con el año anterior, el colegio \"&IF('Año vs año'!G5>=5,\"MEJORÓ\",IF('Año vs año'!G5<=-5,\"RETROCEDIÓ\",\"SE MANTUVO IGUAL\"))&\" (\"&TEXT('Año vs año'!G5,\"+0;-0;0\")&\" puntos).\")", big(13, NAVY), left)
+
+box('B107:M107', None, 'CÓMO LEER ESTE TABLERO', big(13, NAVY), left)
+guia = ['La nota va de 0 a 100. Más alta es mejor.',
+        'Verde (85 o más): cumple muy bien. Amarillo (70 a 84): cumple a medias. Rojo (menos de 70): no cumple. Gris: faltan datos para calificar.',
+        'La nota no la pone una sola persona: combina planeadores, semanas cumplidas, cuadernos sorteados, clases observadas por dos personas, lo que aprendieron los estudiantes y su opinión.',
+        'Una diferencia de 5 puntos o más entre años es un cambio real; menos de 5 se considera igual.',
+        'Para ver otro año o período, cambie las casillas amarillas de arriba.']
+for i, t in enumerate(guia):
+    box(f'B{108+i}:M{108+i}', None, '•  ' + t, big(11, '333333', False), left)
+    DB.row_dimensions[108 + i].height = 30
+DB.row_dimensions[1].height = 34; DB.row_dimensions[19].height = 22
+for r in range(7, 12): DB.row_dimensions[r].height = 22
+DB.freeze_panes = 'A5'
+
+wb.calculation = CalcProperties(fullCalcOnLoad=True)
 wb.save(OUT); print('ok', OUT)

@@ -1,6 +1,6 @@
 // Construye web/index.html (Cloudflare) y dist/artifact.html (vista previa) desde web/src/app.html.
 // Inserta el motor de indicadores y los datos de referencia; así la app funciona incluso sin API.
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, statSync } from 'node:fs';
 const motor = readFileSync('worker/src/indicadores.js', 'utf8');
 const nombres = [...motor.matchAll(/export (?:const|function) (\w+)/g)].map(m => m[1]);
 const motorInline = motor.replace(/^export /gm, '') + `\nconst I = { ${nombres.join(', ')} };\n`;
@@ -12,7 +12,15 @@ const agentes = readdirSync('.claude/agents').map(f => {
   return { nombre: g('name'), rol: d.split('. ')[0] + '.', cuando: d.split('. ').slice(1).join('. ') };
 });
 const anioActual = readdirSync('data/anios').filter(a => /^\d{4}$/.test(a)).sort().at(-1);
-const DATOS = {
+const INFO = {
+  'Tablero_Indicadores_CENTEC.xlsx': { titulo: 'Tablero de Indicadores (Excel)', desc: 'Dashboard de lectura fácil con gráficos, registro por docente y período, ICD con fórmulas vivas, comparativo año vs año y lecciones aprendidas.', tipo: 'Excel' },
+};
+const descargas = existsSync('web/descargas') ? readdirSync('web/descargas').filter(f => !f.startsWith('.')).map(f => {
+  const st = statSync('web/descargas/' + f);
+  const kit = f.startsWith('Kit_Auditoria') ? { titulo: 'Kit de Auditoría y Seguimiento ' + (f.match(/\d{4}/) || [''])[0] + ' (Word)', desc: 'Membrete CENTEC: ICD, rúbricas del planeador y cuadernos, observación de aula, pre/post, PIAR, transversales, encuesta, informe docente, acta, plan de mejora, matriz normativa y cierre anual.', tipo: 'Word' } : null;
+  return { archivo: f, kb: Math.round(st.size / 1024), fecha: st.mtime.toISOString().slice(0, 10), ...(INFO[f] || kit || { titulo: f, desc: '', tipo: f.split('.').pop().toUpperCase() }) };
+}) : [];
+const DATOS = { descargas,
   normativa: leer('data/normativa.json'), indicadores: leer('data/indicadores.json'),
   transversales: leer('data/transversales.json'), calendario: leer('data/calendario-revision.json'),
   metas: existsSync(`data/anios/${anioActual}/metas.json`) ? leer(`data/anios/${anioActual}/metas.json`).metas : {}, agentes,

@@ -5,6 +5,11 @@ Toda mejora cita su origen (issue, auditoría, lección de cierre o norma) y có
 
 ## Sin publicar
 
+## [1.1.0] — 2026-10-21
+### Agregado
+- Hoja «Dashboard» en el Tablero de Indicadores (Excel): nota del colegio en lenguaje sencillo, docentes por color, gráficos coloreados por estado, fortalezas y debilidades, comparativo año a año y guía de lectura.
+- Pestaña «Documentos» en el aplicativo: el Kit de Auditoría y el Tablero se regeneran en cada despliegue y se descargan desde la app.
+
 ## [1.0.0] — 2026-10-21
 ### Agregado
 - Aplicativo web (Cloudflare Worker + D1) multi-año: tablero ICD, registro de evidencias, comparativo año vs año, normativa, agentes, años y datos.

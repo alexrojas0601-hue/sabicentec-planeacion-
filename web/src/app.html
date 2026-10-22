@@ -34,6 +34,7 @@ select,input,textarea{background:var(--panel);border:1px solid var(--line);borde
 textarea{width:100%;min-height:64px}
 button{cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--panel);border-radius:6px;padding:7px 14px;font-weight:600}
 button.ghost{background:transparent;color:var(--accent)}
+a.btn{justify-self:start;display:inline-block;text-decoration:none;border:1px solid var(--accent);background:var(--accent);color:var(--panel);border-radius:6px;padding:7px 14px;font-weight:600}
 button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;width:100%;scrollbar-width:thin}
 nav.tabs button{background:transparent;color:var(--muted);border:0;border-bottom:3px solid transparent;border-radius:0;padding:8px 12px;white-space:nowrap;font-weight:600}
@@ -156,7 +157,7 @@ async function enviar(reg) {
 }
 
 // ---------- Pestañas ----------
-const TABS = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
+const TABS = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
 function pintarTabs() {
   $('#tabs').innerHTML = TABS.map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
 }
@@ -310,6 +311,14 @@ function vNormativa() {
   ${n.novedades?.length ? `<section class="card"><h2>Novedades y pendientes de verificación</h2><ul>${n.novedades.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}`;
 }
 
+function vDocumentos() {
+  const d = DATOS.descargas || [];
+  return `<section class="card"><h1>Documentos para descargar</h1>
+  <p class="small muted">Se regeneran solos con cada actualización del sistema: si cambia una norma, un indicador o un formato, el siguiente despliegue publica la versión nueva aquí. Siempre descargue desde esta página para tener la última versión.</p>
+  ${st.api ? '' : '<div class="banner">En esta vista previa las descargas están bloqueadas por el navegador. Funcionan en el aplicativo publicado en Cloudflare; mientras tanto use los archivos enviados en el chat.</div>'}
+  <div class="grid">${d.map(x => `<div class="card" style="gap:8px"><span class="chip" style="justify-self:start">${esc(x.tipo)}</span><h3>${esc(x.titulo)}</h3><p class="small">${esc(x.desc)}</p><p class="small muted mono">${esc(x.archivo)} · ${x.kb} KB · ${esc(x.fecha)}</p><a class="btn" href="descargas/${encodeURIComponent(x.archivo)}" download>Descargar ${esc(x.tipo)}</a></div>`).join('') || '<p class="muted">No hay documentos generados todavía.</p>'}</div></section>`;
+}
+
 function vAgentes() {
   const ag = DATOS.agentes || [];
   const cal = DATOS.calendario?.ciclos || [];
@@ -343,7 +352,7 @@ function render() {
   pintarTabs();
   $('#selAnio').innerHTML = st.anios.map(a => `<option ${a === st.anio ? 'selected' : ''}>${a}</option>`).join('');
   $('#selPer').value = st.periodo;
-  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, agentes: vAgentes, datos: vDatos }[st.tab];
+  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, documentos: vDocumentos, agentes: vAgentes, datos: vDatos }[st.tab];
   $('#main').innerHTML = v();
   wire();
 }

@@ -18,10 +18,35 @@ async function sha256(t) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
-function correo(req) { return (req.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
+// Identidad verificada: solo se acepta el correo que viene dentro del token firmado por Cloudflare Access
+// (cabecera Cf-Access-Jwt-Assertion), comprobando firma RS256, audiencia (ACCESS_AUD) y vencimiento.
+// Si ACCESS_TEAM o ACCESS_AUD no están configurados, nadie entra (falla cerrado).
+const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+let CERTS = { keys: null, t: 0 };
+async function correo(req, env) {
+  if (!env.ACCESS_TEAM || !env.ACCESS_AUD) return '';
+  const jwt = req.headers.get('Cf-Access-Jwt-Assertion') || '';
+  const [h, p, sig] = jwt.split('.');
+  if (!h || !p || !sig) return '';
+  try {
+    const head = JSON.parse(new TextDecoder().decode(b64u(h)));
+    const body = JSON.parse(new TextDecoder().decode(b64u(p)));
+    if (Date.now() - CERTS.t > 3600e3 || !CERTS.keys) {
+      const r = await fetch(`https://${env.ACCESS_TEAM}.cloudflareaccess.com/cdn-cgi/access/certs`);
+      CERTS = { keys: (await r.json()).keys, t: Date.now() };
+    }
+    const jwk = CERTS.keys.find(k => k.kid === head.kid);
+    if (!jwk) return '';
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64u(sig), new TextEncoder().encode(`${h}.${p}`));
+    const aud = [].concat(body.aud || []);
+    if (!ok || !aud.includes(env.ACCESS_AUD) || body.exp * 1000 < Date.now()) return '';
+    return String(body.email || '').trim().toLowerCase();
+  } catch (e) { return ''; }
+}
 async function perfil(req, env) {
   if (env.AGENTES_TOKEN && req.headers.get('x-agentes-token') === env.AGENTES_TOKEN) return { rol: 'agente', nombre: 'Agentes (GitHub)', email: 'agentes' };
-  const email = correo(req);
+  const email = await correo(req, env);
   if (!email) return null;
   const admins = (env.ADMINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   if (admins.includes(email)) {

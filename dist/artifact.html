@@ -85,6 +85,7 @@ details summary{cursor:pointer;font-weight:600}
 
 <header class="top"><div class="top-in">
   <div class="brand"><b>Planeación CENTEC</b><span>Seguimiento y auditoría académica</span></div>
+  <label class="small muted" id="verComoL" hidden>Ver como <select id="verComo"></select></label>
   <label class="small muted">Año <select id="selAnio"></select></label>
   <label class="small muted">Período <select id="selPer"><option value="">Año completo</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
   <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -281,12 +282,16 @@ const DATOS = {"descargas":[{"archivo":"Kit_Auditoria_Planeacion_CENTEC_2027.doc
 
 // ---------- Estado ----------
 const LS = 'centec-planeacion-v1';
-const st = { api: false, anio: 2027, periodo: '', tab: 'tablero', regs: {}, anios: [], cerrados: [], docSel: null, demo: true };
+const st = { api: false, anio: 2027, periodo: '', tab: 'tablero', regs: {}, anios: [], cerrados: [], docSel: null, demo: true, yo: null, usuarios: [] };
+const DIRECTIVOS_DEMO = ['Rectoría', 'Vicerrectoría', 'Coordinación académica', 'Paula Andrea Rojas Cairasco', 'Daniela Rojas Cairasco'];
+const esDir = () => st.yo?.rol === 'directivo';
+const TIPOS_DOCENTE = ['planeador', 'ejecucion', 'resultado', 'piar', 'transversal'];
+const misRegs = () => esDir() ? regsActuales() : regsActuales().filter(r => r.docente === st.yo?.nombre);
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f1 = x => x == null ? '—' : (Math.round(x * 10) / 10).toFixed(1);
 function toast(t) { const e = $('#toast'); e.textContent = t; e.hidden = false; clearTimeout(e._t); e._t = setTimeout(() => e.hidden = true, 2600); }
-function guardar() { try { localStorage.setItem(LS, JSON.stringify({ regs: st.regs, anios: st.anios, cerrados: st.cerrados, demo: st.demo, sugerencias: st.sugerencias || [] })); } catch (e) {} }
+function guardar() { if (st.api) return; try { localStorage.setItem(LS, JSON.stringify({ regs: st.regs, anios: st.anios, cerrados: st.cerrados, demo: st.demo, sugerencias: st.sugerencias || [], usuarios: st.usuarios, yo: st.yo })); } catch (e) {} }
 function cargarLocal() { try { const d = JSON.parse(localStorage.getItem(LS) || 'null'); if (d) Object.assign(st, d); return !!d; } catch (e) { return false; } }
 
 // ---------- Datos de ejemplo (claramente marcados) ----------
@@ -316,6 +321,13 @@ function demo(anio, mejora) {
   });
   return r;
 }
+function usuariosDemo() {
+  const asig = [[['Transición', '*']], [['1°', '*']], [['3°', '*']], [['5°', '*']], [['1°', 'Inglés'], ['2°', 'Inglés'], ['3°', 'Inglés'], ['4°', 'Inglés'], ['5°', 'Inglés']],
+    [['6°', 'Matemáticas'], ['7°', 'Matemáticas'], ['8°', 'Matemáticas'], ['9°', 'Matemáticas']], [['6°', 'Lenguaje'], ['7°', 'Lenguaje'], ['8°', 'Lenguaje'], ['9°', 'Lenguaje'], ['10°', 'Lenguaje'], ['11°', 'Lenguaje']],
+    [['6°', 'Ciencias Naturales'], ['7°', 'Ciencias Naturales'], ['8°', 'Ciencias Naturales'], ['9°', 'Ciencias Naturales'], ['10°', 'Química'], ['11°', 'Física']]];
+  const nom = ['Docente A (Transición)', 'Docente B (1°)', 'Docente C (3°)', 'Docente D (5°)', 'Docente E (Inglés primaria)', 'Docente F (Matemáticas 6°–9°)', 'Docente G (Lenguaje 6°–11°)', 'Docente H (Ciencias 6°–11°)'];
+  return nom.map((n, i) => ({ email: `docente${'abcdefgh'[i]}@ejemplo.edu.co`, nombre: n, cargo: 'Docente', rol: 'docente', activo: 1, asignaciones: asig[i].map(([grado, area]) => ({ grado, area })) }));
+}
 
 // ---------- API (Cloudflare) o modo local ----------
 async function detectarApi() {
@@ -339,13 +351,17 @@ async function enviar(reg) {
 }
 
 // ---------- Pestañas ----------
-const TABS = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
+const TABS_DIR = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['usuarios', 'Usuarios'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
+const TABS_DOC = [['tablero', 'Mi tablero'], ['registrar', 'Registrar mi evidencia'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['sugerir', 'Sugerir mejora']];
+const tabsRol = () => esDir() ? TABS_DIR : TABS_DOC;
 function pintarTabs() {
-  $('#tabs').innerHTML = TABS.map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
+  if (!tabsRol().some(([k]) => k === st.tab)) st.tab = 'tablero';
+  $('#tabs').innerHTML = tabsRol().map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; st.tab = b.dataset.t; st.docSel = null; render(); });
 $('#selAnio').addEventListener('change', async e => { st.anio = Number(e.target.value); await cargarAnio(st.anio); render(); });
 $('#selPer').addEventListener('change', e => { st.periodo = e.target.value; render(); });
+$('#verComo').addEventListener('change', e => { const v = e.target.value; st.yo = v === '' ? { rol: 'directivo', nombre: 'Vista previa', email: '' } : { ...st.usuarios[+v], rol: 'docente' }; st.docSel = null; st.tab = 'tablero'; render(); toast(v === '' ? 'Viendo como directivo' : 'Viendo como ' + st.usuarios[+v].nombre); });
 
 const pill = s => `<span class="pill ${s.color}">${esc(s.nivel.split(' — ')[0])}</span>`;
 const NOMBRES = Object.fromEntries((DATOS.indicadores?.componentes || []).map(c => [c.id, `${c.codigo} ${c.nombre}`]));
@@ -362,6 +378,7 @@ function vTablero() {
   const al = I.alertas(per ? R.filter(r => r.periodo === per) : R, st.anio);
   const cuenta = c => res.filas.filter(f => f.semaforo.color === c).length;
   const meta = (DATOS.metas || {}).icd_institucional;
+  if (!esDir()) return vDocente(st.yo.nombre, per, true);
   if (st.docSel) return vDocente(st.docSel, per);
   return `${bannerDemo()}
   <section class="grid">
@@ -383,13 +400,16 @@ function vTablero() {
   </section>`;
 }
 
-function vDocente(doc, per) {
+function vDocente(doc, per, propio = false) {
   const R = regsActuales();
   const f = I.calcularDocente(R, doc, per);
   const serie = [1, 2, 3, 4].map(p => I.calcularDocente(R, doc, p).icd);
   const W = 320, H = 120, x = i => 30 + i * 90, y = v => H - 20 - (v ?? 0) * (H - 40) / 100;
   const pts = serie.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
-  return `<button class="ghost" id="volver">← Volver al tablero</button>
+  const misAl = propio ? I.alertas(R, st.anio).filter(a => a.docente === doc) : [];
+  const asig = (st.yo?.asignaciones || []).map(a => `${a.grado} · ${a.area === '*' ? 'todas las áreas' : a.area}`);
+  return `${propio ? (st.demo ? bannerDemo() : '') + `<section class="card"><h1>Mi tablero</h1><p class="small muted">${esc(st.yo.nombre)} · ${asig.length ? esc(asig.join(' · ')) : 'sin asignaciones: pida a coordinación que le asigne grados y áreas'}</p><p class="small">Aquí ve su propio cumplimiento con el mismo cálculo que usa coordinación. Solo usted y los directivos ven esta información.</p></section>` : '<button class="ghost" id="volver">← Volver al tablero</button>'}
+  ${misAl.length ? `<section class="card"><h2>Lo que necesita atención</h2>${misAl.map(a => `<div class="alert"><span class="pill ${a.nivel === 'alta' ? 'rojo' : a.nivel === 'media' ? 'amarillo' : 'gris'}">${a.nivel}</span><div class="muted">${esc(a.msg)}</div></div>`).join('')}</section>` : ''}
   <section class="card"><div class="row" style="align-items:center"><h1 style="margin-right:auto">${esc(doc)}</h1>${pill(f.semaforo)}<span class="kpi"><span class="v">${f1(f.icd)}</span></span></div>
   <p class="small muted">${esc(f.semaforo.accion || 'Completar evidencias: se necesitan al menos 3 fuentes independientes.')} · Fuentes: ${f.fuentes} · Observadores distintos: ${f.observadores} · Pesos con dato: ${f.cobertura_pesos} %</p>
   ${Object.keys(I.PESOS).map(k => `<div class="comp"><span>${esc(NOMBRES[k] || k)}</span><div class="bar"><i style="width:${f.componentes[k] ?? 0}%"></i></div><span class="mono">${f1(f.componentes[k])}</span><span class="w">${Math.round(I.PESOS[k] * 100)} %</span></div>`).join('')}
@@ -411,12 +431,17 @@ const RUBRICAS = {
 const seg = (name, max, min = 0) => `<span class="seg">${Array.from({ length: max - min + 1 }, (_, i) => i + min).map(v => `<label><input type="radio" name="${name}" value="${v}" required><span>${v}</span></label>`).join('')}</span>`;
 
 function vRegistrar() {
+  if (!esDir() && !TIPOS_DOCENTE.includes(st.tipoReg || 'planeador')) st.tipoReg = 'planeador';
   const tipo = st.tipoReg || 'planeador';
-  const docs = [...new Set(regsActuales().map(r => r.docente))];
+  const docs = esDir() ? [...new Set([...regsActuales().map(r => r.docente), ...st.usuarios.map(u => u.nombre)])] : [st.yo.nombre];
+  const asig = st.yo?.asignaciones || [];
+  const gradosOk = esDir() ? GRADOS : [...new Set(asig.map(a => a.grado))];
+  const areasDe = g => esDir() ? AREAS : (asig.some(a => a.grado === g && a.area === '*') ? AREAS : asig.filter(a => a.grado === g).map(a => a.area));
+  if (!esDir() && !gradosOk.length) return `<section class="card"><h1>Registrar mi evidencia</h1><p class="banner">Todavía no tiene grados ni áreas asignados. Pida a coordinación académica que lo configure en la pestaña Usuarios.</p></section>`;
   const comunes = `<div class="row">
-    <label>Docente<input id="r-doc" list="dl-doc" required placeholder="Nombre del docente"><datalist id="dl-doc">${docs.map(d => `<option value="${esc(d)}">`).join('')}</datalist></label>
-    <label>Grado<select id="r-grado">${GRADOS.map(g => `<option>${g}</option>`).join('')}</select></label>
-    <label>Área<select id="r-area">${AREAS.map(g => `<option>${g}</option>`).join('')}</select></label>
+    <label>Docente${esDir() ? `<input id="r-doc" list="dl-doc" required placeholder="Nombre del docente"><datalist id="dl-doc">${docs.map(d => `<option value="${esc(d)}">`).join('')}</datalist>` : `<input id="r-doc" value="${esc(st.yo.nombre)}" readonly>`}</label>
+    <label>Grado<select id="r-grado">${gradosOk.map(g => `<option>${g}</option>`).join('')}</select></label>
+    <label>Área<select id="r-area">${areasDe(gradosOk[0]).map(g => `<option>${g}</option>`).join('')}</select></label>
     <label>Período<select id="r-per">${[1, 2, 3, 4].map(p => `<option ${String(p) === (st.periodo || '1') ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
     <label>Semana<input id="r-sem" type="number" min="1" max="40" value="1"></label></div>`;
   const esp = {
@@ -433,9 +458,10 @@ function vRegistrar() {
     transversal: `<div class="row"><label>Proyecto<select id="tr-p">${(DATOS.transversales?.proyectos || []).map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></label><label>Fases con evidencia fechada (0–5)<input id="tr-f" type="number" min="0" max="5" value="3"></label></div><p class="small muted">Fases: INSPIRA · DISEÑA · EXPLORA · CREA · EVALÚA.</p>`,
     encuesta: `<div class="row"><label>Estudiantes que respondieron<input id="en-n" type="number" min="1" value="20"></label><label>Escala<select id="en-esc"><option value="5">Likert 1–5 (3° en adelante)</option><option value="3">Caritas 1–3 (Transición a 2°)</option></select></label><label>Promedio de los 10 ítems<input id="en-p" type="number" step="0.01" min="1" max="5" value="4.1"></label></div><p class="small muted">Se reporta solo con 10 o más respuestas. Anónima, aplicada sin el docente presente.</p>`,
   };
-  const tipos = [['planeador', 'Planeador'], ['ejecucion', 'Ejecución'], ['cuaderno', 'Cuadernos'], ['observacion', 'Observación de aula'], ['resultado', 'Pre/Post'], ['piar', 'PIAR'], ['transversal', 'Proyecto transversal'], ['encuesta', 'Encuesta estudiantil']];
+  const tipos = [['planeador', 'Planeador'], ['ejecucion', 'Ejecución'], ['cuaderno', 'Cuadernos'], ['observacion', 'Observación de aula'], ['resultado', 'Pre/Post'], ['piar', 'PIAR'], ['transversal', 'Proyecto transversal'], ['encuesta', 'Encuesta estudiantil']].filter(([k]) => esDir() || TIPOS_DOCENTE.includes(k));
+  st._areasDe = areasDe;
   return `${st.cerrados.includes(st.anio) ? `<div class="banner">El año ${st.anio} está cerrado y solo se puede consultar.</div>` : ''}
-  <section class="card"><h1>Registrar evidencia · ${st.anio}</h1>
+  <section class="card"><h1>${esDir() ? 'Registrar evidencia' : 'Registrar mi evidencia'} · ${st.anio}</h1>${esDir() ? '' : '<p class="small muted">Cuadernos, observación de aula y encuesta estudiantil los registra coordinación académica: nadie se califica a sí mismo.</p>'}
   <div class="row">${tipos.map(([k, t]) => `<button class="${k === tipo ? '' : 'ghost'}" data-tipo="${k}" type="button">${t}</button>`).join('')}</div>
   <form class="reg" id="freg">${comunes}<label class="small muted" style="display:grid;gap:4px">Enlace a la evidencia (foto, carpeta Drive, PDF)<input id="r-url" type="url" placeholder="https://"></label>${esp[tipo]}<div class="row"><button type="submit">Guardar registro</button></div></form></section>`;
 }
@@ -445,7 +471,7 @@ function parseRes(t) { return t.split(/\n+/).map(l => l.split(/[;,\t ]+/).map(Nu
 async function onSubmitReg(e) {
   e.preventDefault();
   const tipo = st.tipoReg || 'planeador';
-  const base = { anio: st.anio, periodo: Number($('#r-per').value), tipo, docente: $('#r-doc').value.trim(), grado: $('#r-grado').value, area: $('#r-area').value, semana: Number($('#r-sem').value), evidencia_url: $('#r-url').value || null };
+  const base = { anio: st.anio, periodo: Number($('#r-per').value), tipo, docente: esDir() ? $('#r-doc').value.trim() : st.yo.nombre, grado: $('#r-grado').value, area: $('#r-area').value, semana: Number($('#r-sem').value), evidencia_url: $('#r-url').value || null };
   let payload;
   if (tipo === 'planeador') payload = { a_tiempo: $('#p-tiempo').value === '1', dba_total: +$('#p-dbat').value, dba_cubiertos: +$('#p-dbac').value, rubrica: leerSeg('r1-', 8) };
   if (tipo === 'ejecucion') payload = { semanas_planeadas: +$('#e-pl').value, semanas_ejecutadas: +$('#e-ej').value };
@@ -501,6 +527,30 @@ function vDocumentos() {
   <div class="grid">${d.map(x => `<div class="card" style="gap:8px"><span class="chip" style="justify-self:start">${esc(x.tipo)}</span><h3>${esc(x.titulo)}</h3><p class="small">${esc(x.desc)}</p><p class="small muted mono">${esc(x.archivo)} · ${x.kb} KB · ${esc(x.fecha)}</p><a class="btn" href="descargas/${encodeURIComponent(x.archivo)}" download>Descargar ${esc(x.tipo)}</a></div>`).join('') || '<p class="muted">No hay documentos generados todavía.</p>'}</div></section>`;
 }
 
+function vSugerir() {
+  return `<section class="card"><h1>Sugerir una mejora</h1><p class="small muted">Cada sugerencia llega al equipo de mejora continua y, si se aprueba, se convierte en un cambio del aplicativo. No incluya datos de estudiantes.</p>
+  <form id="fsug" class="reg"><textarea id="sug-txt" required minlength="10" placeholder="Ej.: que el planeador se pueda duplicar de la semana anterior"></textarea><div class="row"><button type="submit">Enviar sugerencia</button></div></form></section>`;
+}
+
+function vUsuarios() {
+  const u = st.usuarios || [];
+  const ed = st.uEdit || { email: '', nombre: '', cargo: 'Docente', asignaciones: [], activo: 1 };
+  const tiene = (g, a) => ed.asignaciones.some(x => x.grado === g && x.area === a);
+  return `<section class="card"><h1>Usuarios y permisos</h1>
+  <p class="small">Acceso total: ${DIRECTIVOS_DEMO.map(esc).join(', ')}. ${st.api ? 'Se configuran con el secreto ADMINS del servidor, no desde esta pantalla, para que nadie pueda darse permisos a sí mismo.' : ''}</p>
+  <p class="small muted">Cada docente entra con su correo institucional y solo ve y registra lo de sus grados y áreas. No ve el tablero de otros docentes, la comparación institucional, los usuarios ni la configuración.</p>
+  <div class="tbl"><table><thead><tr><th>Docente</th><th>Correo</th><th>Grados y áreas</th><th>Estado</th><th></th></tr></thead><tbody>
+  ${u.map((x, i) => `<tr><td>${esc(x.nombre)}</td><td class="small mono">${esc(x.email)}</td><td class="small">${esc(x.asignaciones.map(a => a.grado + ' ' + (a.area === '*' ? '(todas)' : a.area)).join(' · '))}</td><td>${x.activo ? '<span class="pill verde">activo</span>' : '<span class="pill gris">inactivo</span>'}</td><td><button class="ghost" data-uedit="${i}">Editar</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Aún no hay docentes registrados.</td></tr>'}
+  </tbody></table></div></section>
+  <section class="card"><h2>${ed.email ? 'Editar docente' : 'Agregar docente'}</h2>
+  <form id="fusr" class="reg"><div class="row"><label>Nombre completo (igual al de sus registros)<input id="u-nom" required value="${esc(ed.nombre)}"></label><label>Correo institucional<input id="u-mail" type="email" required value="${esc(ed.email)}" ${ed.email ? 'readonly' : ''}></label><label>Estado<select id="u-act"><option value="1" ${ed.activo ? 'selected' : ''}>Activo</option><option value="0" ${ed.activo ? '' : 'selected'}>Inactivo (sin acceso)</option></select></label></div>
+  <h3>Grados y áreas asignados</h3><p class="small muted">Marque «Todas» para docentes de grado (primaria integrada).</p>
+  <div class="tbl"><table><thead><tr><th>Grado</th><th>Todas</th>${AREAS.map(a => `<th style="white-space:normal;min-width:70px">${esc(a)}</th>`).join('')}</tr></thead><tbody>
+  ${GRADOS.map(g => `<tr><td><b>${g}</b></td><td><input type="checkbox" data-g="${g}" data-a="*" ${tiene(g, '*') ? 'checked' : ''} aria-label="${g} todas"></td>${AREAS.map(a => `<td><input type="checkbox" data-g="${g}" data-a="${esc(a)}" ${tiene(g, a) ? 'checked' : ''} aria-label="${g} ${esc(a)}"></td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>
+  <div class="row"><button type="submit">Guardar docente</button>${ed.email ? '<button type="button" class="ghost" id="u-nuevo">Agregar otro</button>' : ''}</div></form></section>`;
+}
+
 function vAgentes() {
   const ag = DATOS.agentes || [];
   const cal = DATOS.calendario?.ciclos || [];
@@ -531,10 +581,13 @@ function vDatos() {
 }
 
 function render() {
+  if (st.sinAcceso) { $('#tabs').innerHTML = ''; $('#main').innerHTML = `<section class="card"><h1>Sin acceso</h1><p>${esc(st.sinAcceso)}</p></section>`; return; }
+  const vc = $('#verComo');
+  if (!st.api) { $('#verComoL').hidden = false; vc.innerHTML = `<option value="">Directivo (acceso total)</option>` + st.usuarios.map((u, i) => `<option value="${i}" ${st.yo?.email === u.email ? 'selected' : ''}>${esc(u.nombre)}</option>`).join(''); }
   pintarTabs();
   $('#selAnio').innerHTML = st.anios.map(a => `<option ${a === st.anio ? 'selected' : ''}>${a}</option>`).join('');
   $('#selPer').value = st.periodo;
-  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, documentos: vDocumentos, agentes: vAgentes, datos: vDatos }[st.tab];
+  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, documentos: vDocumentos, usuarios: vUsuarios, sugerir: vSugerir, agentes: vAgentes, datos: vDatos }[st.tab];
   $('#main').innerHTML = v();
   wire();
 }
@@ -543,6 +596,7 @@ function wire() {
   const vb = $('#volver'); if (vb) vb.onclick = () => { st.docSel = null; render(); };
   document.querySelectorAll('[data-tipo]').forEach(b => b.onclick = () => { st.tipoReg = b.dataset.tipo; render(); });
   const fr = $('#freg'); if (fr) fr.onsubmit = onSubmitReg;
+  const rg = $('#r-grado'); if (rg && st._areasDe) rg.onchange = () => { $('#r-area').innerHTML = st._areasDe(rg.value).map(a => `<option>${a}</option>`).join(''); };
   const cs = $('#c-sortear'); if (cs) cs.onclick = () => { const seed = $('#c-seed').value + '|' + $('#r-grado').value + '|' + $('#r-area').value; const n = +$('#c-n').value; st.muestra = I.sortear(seed, n, I.tamanoMuestra(n)); $('#c-seed').value = seed; $('#c-res').textContent = 'Muestra (números de lista): ' + st.muestra.join(', '); };
   const rt = $('#res-txt'); if (rt) rt.oninput = () => { const g = parseRes(rt.value).filter(e => e.pre <= 90).map(e => I.hake(e.pre, e.post)).filter(x => x != null); $('#res-g').textContent = g.length ? `g promedio: ${(g.reduce((a, b) => a + b) / g.length).toFixed(2)} (${g.length} estudiantes)` : 'g promedio: —'; };
   const na = $('#nuevoAnio'); if (na) na.onclick = async () => { const a = Math.max(...st.anios) + 1; if (st.api) await fetch('/api/anios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ anio: a }) }); st.anios.push(a); st.regs[a] = []; guardar(); toast(`Año ${a} abierto`); render(); };
@@ -552,13 +606,25 @@ function wire() {
   const fs = $('#fsug'); if (fs) fs.onsubmit = async e => { e.preventDefault(); const texto = $('#sug-txt').value.trim();
     if (st.api) { const r = await fetch('/api/sugerencias', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texto, pantalla: st.tab }) }); const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo enviar'); return; } }
     (st.sugerencias ||= []).push({ texto, fecha: new Date().toISOString() }); guardar(); toast(st.api ? 'Sugerencia enviada al equipo de mejora' : 'Sugerencia guardada en este navegador (se envía cuando la app esté en Cloudflare)'); render(); };
-  const bd = $('#borrarDemo'); if (bd) bd.onclick = () => { st.regs = { 2027: [] }; st.anios = [2027]; st.cerrados = []; st.anio = 2027; st.demo = false; guardar(); toast('Datos de ejemplo borrados'); render(); };
+  document.querySelectorAll('[data-uedit]').forEach(b => b.onclick = () => { st.uEdit = JSON.parse(JSON.stringify(st.usuarios[+b.dataset.uedit])); render(); });
+  const un = $('#u-nuevo'); if (un) un.onclick = () => { st.uEdit = null; render(); };
+  const fu = $('#fusr'); if (fu) fu.onsubmit = async e => { e.preventDefault();
+    const u = { email: $('#u-mail').value.trim().toLowerCase(), nombre: $('#u-nom').value.trim(), cargo: 'Docente', activo: +$('#u-act').value,
+      asignaciones: [...document.querySelectorAll('#fusr input[type=checkbox]:checked')].map(c => ({ grado: c.dataset.g, area: c.dataset.a })) };
+    if (st.api) { const r = await fetch('/api/usuarios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(u) }); const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo guardar'); return; } }
+    const i = st.usuarios.findIndex(x => x.email === u.email); if (i >= 0) st.usuarios[i] = u; else st.usuarios.push(u);
+    st.uEdit = null; guardar(); toast('Docente guardado'); render(); };
+  const bd = $('#borrarDemo'); if (bd) bd.onclick = () => { st.regs = { 2027: [] }; st.anios = [2027]; st.cerrados = []; st.anio = 2027; st.demo = false; st.usuarios = []; st.yo = { rol: 'directivo', nombre: 'Vista previa', email: '' }; guardar(); toast('Datos de ejemplo borrados'); render(); };
 }
 
 (async function inicio() {
   st.api = await detectarApi();
   if (st.api) {
     st.demo = false;
+    const ry = await fetch('/api/yo');
+    if (!ry.ok) { const j = await ry.json().catch(() => ({})); st.sinAcceso = j.error || 'Su correo no está autorizado.'; render(); return; }
+    st.yo = await ry.json();
+    if (esDir()) { const ru = await fetch('/api/usuarios'); if (ru.ok) st.usuarios = (await ru.json()).usuarios; }
     const a = await (await fetch('/api/anios')).json();
     st.anios = a.map(x => x.anio); st.cerrados = a.filter(x => x.cerrado).map(x => x.anio);
     st.anio = st.anios.includes(new Date().getFullYear()) ? new Date().getFullYear() : st.anios.at(-1);
@@ -567,6 +633,7 @@ function wire() {
   } else if (!cargarLocal()) {
     st.regs = { 2026: demo(2026, -0.06), 2027: demo(2027, 0) }; st.anios = [2026, 2027]; st.cerrados = [2026]; st.anio = 2027; st.demo = true;
   }
+  if (!st.api) { if (!st.usuarios?.length) st.usuarios = usuariosDemo(); if (!st.yo) st.yo = { rol: 'directivo', nombre: 'Vista previa', email: '' }; }
   render();
 })();
 </script>

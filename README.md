@@ -71,12 +71,21 @@ Todo cambio que proponen los agentes llega como **Pull Request** para aprobació
    ```
 3. **Proteger el acceso:** Cloudflare Zero Trust → Access → aplicación sobre el dominio del Worker, permitiendo solo correos `@centec.edu.co` (o la lista de directivos y docentes). Crear un *service token* para GitHub Actions.
 4. **Secretos de GitHub** (Settings → Secrets → Actions): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ANTHROPIC_API_KEY`, `CF_ACCESS_ID`, `CF_ACCESS_SECRET`; variable `APP_URL` con la dirección del aplicativo. Instalar la app de Claude en el repositorio (`/install-github-app` desde Claude Code).
-5. **Secretos del Worker:** `npx wrangler secret put GH_TOKEN` (token con permiso de issues y actions), `GH_REPO` (`usuario/centec-planeacion`) y, opcional, `ALERT_WEBHOOK` (Google Chat, Slack o pasarela de WhatsApp).
+5. **Secretos del Worker:** `npx wrangler secret put ADMINS` (correos de los 5 directivos, separados por coma), `npx wrangler secret put AGENTES_TOKEN` (clave aleatoria; también en GitHub con el mismo nombre), `npx wrangler secret put GH_TOKEN` (token con permiso de issues y actions), `GH_REPO` (`usuario/centec-planeacion`) y, opcional, `ALERT_WEBHOOK` (Google Chat, Slack o pasarela de WhatsApp).
 6. **Calendario:** cargar las fechas oficiales de los 4 períodos de 2027 cuando la Secretaría de Educación de Cali publique la resolución (POST `/api/calendario` o editar `data/anios/2027/calendario.json`).
 
 ## Uso local sin instalar nada
 
 Abra `web/index.html` en el navegador: funciona en modo local con datos de ejemplo (docentes A–H ficticios). Bórrelos en *Años y datos* antes de cargar datos reales.
+
+## Quién ve qué
+
+| Perfil | Qué puede hacer |
+|---|---|
+| **Directivos** — rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco | Todo: tablero institucional, todos los docentes, registrar cualquier evidencia, comparativo año vs año, usuarios, agentes, abrir y cerrar años. Se configuran con el secreto `ADMINS` (lista de correos), nunca desde la app. |
+| **Docente** | Solo su tablero y sus registros, en los grados y áreas que coordinación le asignó en la pestaña «Usuarios». Registra planeador, ejecución, pre/post, PIAR y proyectos transversales. No registra cuadernos, observación ni encuesta: nadie se califica a sí mismo. |
+| **Agentes (GitHub)** | Solo lectura, con el secreto `AGENTES_TOKEN`, para auditorías y cierres. |
+| Cualquier otro correo | Sin acceso. |
 
 ## Privacidad
 

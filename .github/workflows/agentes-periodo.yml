@@ -19,7 +19,7 @@ jobs:
       - name: Exportar registros del aplicativo
         run: |
           mkdir -p data/anios/$ANIO/registros
-          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" \
+          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" -H "x-agentes-token: ${{ secrets.AGENTES_TOKEN }}" \
             "${{ vars.APP_URL }}/api/export?anio=$ANIO" -o data/anios/$ANIO/registros/export.json
       - run: node scripts/calcular-indicadores.mjs $ANIO $PERIODO > data/anios/$ANIO/indicadores-P$PERIODO.json
       - uses: anthropics/claude-code-action@v1

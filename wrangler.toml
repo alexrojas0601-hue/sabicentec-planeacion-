@@ -15,11 +15,13 @@ database_name = "centec-planeacion"
 database_id = "REEMPLAZAR_CON_ID_DE_D1"   # wrangler d1 create centec-planeacion
 migrations_dir = "worker/migrations"
 
-[vars]
-# Correos autorizados a escribir (además de Cloudflare Access). Separados por coma.
-EDITORES = "rectoria@centec.edu.co,coordinacion@centec.edu.co"
+# ACCESO (secretos, nunca en el repositorio):
+#   npx wrangler secret put ADMINS        → correos con acceso total, separados por coma:
+#        rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco
+#   npx wrangler secret put AGENTES_TOKEN → clave larga aleatoria; la usan los GitHub Actions (solo lectura)
+# Los docentes se dan de alta desde la pestaña «Usuarios» del aplicativo.
 
 # Automatización: todos los días 6:00 a. m. Colombia (11:00 UTC)
 [triggers]
 crons = ["0 11 * * *"]
-# Secretos (wrangler secret put): ALERT_WEBHOOK (Google Chat / Slack / pasarela WhatsApp), GH_TOKEN, GH_REPO
+# Otros secretos (wrangler secret put): ALERT_WEBHOOK (Google Chat / Slack / pasarela WhatsApp), GH_TOKEN, GH_REPO

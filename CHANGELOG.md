@@ -5,6 +5,12 @@ Toda mejora cita su origen (issue, auditoría, lección de cierre o norma) y có
 
 ## Sin publicar
 
+## [1.2.0] — 2026-10-21
+### Agregado
+- Control de acceso por roles. Directivos con acceso total (rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco) definidos solo por el secreto ADMINS. Cada docente ve y registra únicamente lo suyo, en los grados y áreas asignados. Cuadernos, observación y encuesta solo los registran directivos.
+- Pestaña «Usuarios» para dar de alta docentes y sus asignaciones. Selector «Ver como» en la vista previa.
+- Token de solo lectura para los agentes (AGENTES_TOKEN).
+
 ## [1.1.0] — 2026-10-21
 ### Agregado
 - Hoja «Dashboard» en el Tablero de Indicadores (Excel): nota del colegio en lenguaje sencillo, docentes por color, gráficos coloreados por estado, fortalezas y debilidades, comparativo año a año y guía de lectura.

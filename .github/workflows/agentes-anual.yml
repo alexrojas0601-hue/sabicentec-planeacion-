@@ -23,7 +23,7 @@ jobs:
       - if: steps.q.outputs.accion == 'cierre'
         run: |
           mkdir -p data/anios/${{ steps.q.outputs.anio }}/registros
-          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" \
+          curl -sf -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_ID }}" -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_SECRET }}" -H "x-agentes-token: ${{ secrets.AGENTES_TOKEN }}" \
             "${{ vars.APP_URL }}/api/export?anio=${{ steps.q.outputs.anio }}" -o data/anios/${{ steps.q.outputs.anio }}/registros/export.json
           node scripts/calcular-indicadores.mjs ${{ steps.q.outputs.anio }} > data/anios/${{ steps.q.outputs.anio }}/resumen.json
           node scripts/comparar-anios.mjs > docs/informes/comparativo-interanual.md

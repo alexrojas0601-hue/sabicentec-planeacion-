@@ -1,135 +1,189 @@
-import { calcularTodo, alertas as calcAlertas, VERSION } from './indicadores.js';
+import { calcularTodo, calcularDocente, alertas as calcAlertas, VERSION } from './indicadores.js';
 // API del Sistema de Planeación CENTEC (Cloudflare Worker + D1).
-// Protección recomendada: Cloudflare Access delante de todo el dominio.
+// IDENTIDAD: Cloudflare Access va delante de todo el dominio y entrega el correo verificado del usuario.
+// ROLES:
+//   directivo → acceso total. Se define SOLO con el secreto ADMINS (correos separados por coma):
+//               rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco.
+//   docente   → solo sus propios registros, en los grados y áreas que coordinación le asignó (tabla usuarios).
+//   agente    → GitHub Actions con el secreto AGENTES_TOKEN: solo lectura para auditorías y cierres.
 const J = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8' } });
 const TIPOS = ['planeador','ejecucion','cuaderno','observacion','resultado','piar','transversal','lectura','informe','encuesta'];
-// Patrones que nunca deben entrar (datos personales de menores, Ley 1581/2012)
+// Lo que un docente puede registrar de sí mismo. Cuadernos, observación de aula y encuesta estudiantil
+// los registra solo un directivo: nadie se califica a sí mismo (control de sesgo).
+const TIPOS_DOCENTE = ['planeador','ejecucion','resultado','piar','transversal','lectura','informe'];
 const PROHIBIDO = [/\b\d{8,11}\b/, /@[a-z0-9.-]+\.[a-z]{2,}/i, /\b3\d{9}\b/];
+const parse = r => ({ ...r, payload: JSON.parse(r.payload) });
 
 async function sha256(t) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
-function usuario(req) { return req.headers.get('Cf-Access-Authenticated-User-Email') || 'anonimo'; }
-function puedeEscribir(req, env) {
-  const u = usuario(req);
-  if (u === 'anonimo') return false;
-  const eds = (env.EDITORES || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-  return eds.length === 0 || eds.includes(u.toLowerCase()) || u.toLowerCase().endsWith('@centec.edu.co');
+function correo(req) { return (req.headers.get('Cf-Access-Authenticated-User-Email') || '').trim().toLowerCase(); }
+async function perfil(req, env) {
+  if (env.AGENTES_TOKEN && req.headers.get('x-agentes-token') === env.AGENTES_TOKEN) return { rol: 'agente', nombre: 'Agentes (GitHub)', email: 'agentes' };
+  const email = correo(req);
+  if (!email) return null;
+  const admins = (env.ADMINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+  if (admins.includes(email)) {
+    const u = await env.DB.prepare('SELECT nombre, cargo FROM usuarios WHERE email=?').bind(email).first();
+    return { rol: 'directivo', email, nombre: u?.nombre || email, cargo: u?.cargo || 'Directivo' };
+  }
+  const u = await env.DB.prepare('SELECT * FROM usuarios WHERE email=? AND activo=1').bind(email).first();
+  if (!u || u.rol !== 'docente') return null;
+  return { rol: 'docente', email, nombre: u.nombre, cargo: u.cargo || 'Docente', asignaciones: JSON.parse(u.asignaciones || '[]') };
+}
+const esDir = pf => pf?.rol === 'directivo';
+const asignado = (pf, grado, area) => (pf.asignaciones || []).some(a => a.grado === grado && (a.area === area || a.area === '*'));
+async function regsAnio(env, anio) { return (await env.DB.prepare('SELECT * FROM registros WHERE anio=? ORDER BY creado').bind(anio).all()).results.map(parse); }
+async function bitacora(env, anio, accion, detalle, pf) {
+  await env.DB.prepare('INSERT INTO bitacora(anio, accion, detalle, usuario) VALUES (?,?,?,?)').bind(anio, accion, detalle, pf.email).run();
 }
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const p = url.pathname;
+    const anioQ = () => Number(url.searchParams.get('anio') || new Date().getFullYear());
     try {
       if (p === '/api/health') return J({ ok: true, ts: new Date().toISOString() });
+      if (!p.startsWith('/api/')) return env.ASSETS.fetch(req);
 
-      if (p === '/api/anios' && req.method === 'GET') {
-        const r = await env.DB.prepare('SELECT * FROM anios ORDER BY anio').all();
-        return J(r.results);
-      }
+      const pf = await perfil(req, env);
+      if (!pf) return J({ error: 'Su correo no está autorizado en el Sistema de Planeación. Pida acceso a coordinación académica.' }, 403);
+      const soloDir = () => esDir(pf) ? null : J({ error: 'Solo los directivos autorizados (rectoría, vicerrectoría, coordinación académica) pueden hacer esto.' }, 403);
+      const lectura = () => (esDir(pf) || pf.rol === 'agente') ? null : J({ error: 'Sin permiso' }, 403);
+
+      if (p === '/api/yo') return J(pf);
+
+      // ---------- Años ----------
+      if (p === '/api/anios' && req.method === 'GET') return J((await env.DB.prepare('SELECT * FROM anios ORDER BY anio').all()).results);
       if (p === '/api/anios' && req.method === 'POST') {
-        if (!puedeEscribir(req, env)) return J({ error: 'sin permiso' }, 403);
+        const no = soloDir(); if (no) return no;
         const { anio, metas } = await req.json();
         await env.DB.prepare('INSERT OR IGNORE INTO anios(anio, metas) VALUES (?, ?)').bind(anio, JSON.stringify(metas || {})).run();
+        await bitacora(env, anio, 'apertura_anio', '', pf);
         return J({ ok: true });
       }
       if (p.startsWith('/api/anios/') && p.endsWith('/cerrar') && req.method === 'POST') {
-        if (!puedeEscribir(req, env)) return J({ error: 'sin permiso' }, 403);
+        const no = soloDir(); if (no) return no;
         const anio = Number(p.split('/')[3]);
-        await env.DB.batch([
-          env.DB.prepare('UPDATE anios SET cerrado=1 WHERE anio=?').bind(anio),
-          env.DB.prepare('INSERT INTO bitacora(anio, accion, usuario) VALUES (?, "cierre_anual", ?)').bind(anio, usuario(req)),
-        ]);
+        await env.DB.prepare('UPDATE anios SET cerrado=1 WHERE anio=?').bind(anio).run();
+        await bitacora(env, anio, 'cierre_anual', '', pf);
         return J({ ok: true, anio, cerrado: true });
       }
 
+      // ---------- Registros ----------
       if (p === '/api/registros' && req.method === 'GET') {
-        const anio = Number(url.searchParams.get('anio') || new Date().getFullYear());
-        const per = url.searchParams.get('periodo');
-        const q = per ? env.DB.prepare('SELECT * FROM registros WHERE anio=? AND periodo=? ORDER BY creado').bind(anio, Number(per))
-                      : env.DB.prepare('SELECT * FROM registros WHERE anio=? ORDER BY creado').bind(anio);
-        const r = await q.all();
-        return J(r.results.map(x => ({ ...x, payload: JSON.parse(x.payload) })));
+        let regs = await regsAnio(env, anioQ());
+        if (pf.rol === 'docente') regs = regs.filter(r => r.docente === pf.nombre);
+        else { const no = lectura(); if (no) return no; }
+        return J(regs);
       }
       if (p === '/api/registros' && req.method === 'POST') {
-        if (!puedeEscribir(req, env)) return J({ error: 'sin permiso' }, 403);
+        if (pf.rol === 'agente') return J({ error: 'Los agentes no registran evidencias' }, 403);
         const items = [].concat(await req.json());
         const out = [];
         for (const it of items) {
-          if (!TIPOS.includes(it.tipo)) return J({ error: 'tipo inválido: ' + it.tipo }, 400);
+          if (!TIPOS.includes(it.tipo)) return J({ error: 'Tipo inválido: ' + it.tipo }, 400);
+          if (pf.rol === 'docente') {
+            if (!TIPOS_DOCENTE.includes(it.tipo)) return J({ error: 'Cuadernos, observación de aula y encuesta los registra coordinación académica.' }, 403);
+            it.docente = pf.nombre; // un docente solo registra a su nombre
+            if (!asignado(pf, it.grado, it.area)) return J({ error: `No tiene asignado ${it.area} en ${it.grado}. Pida el ajuste a coordinación.` }, 403);
+          }
           const a = await env.DB.prepare('SELECT cerrado FROM anios WHERE anio=?').bind(it.anio).first();
-          if (!a) return J({ error: 'año no abierto: ' + it.anio }, 400);
-          if (a.cerrado) return J({ error: 'año cerrado: ' + it.anio + ' (solo lectura)' }, 409);
+          if (!a) return J({ error: 'Año no abierto: ' + it.anio }, 400);
+          if (a.cerrado) return J({ error: 'El año ' + it.anio + ' está cerrado (solo lectura)' }, 409);
+          if (it.id) { // no se puede sobrescribir lo de otro
+            const prev = await env.DB.prepare('SELECT docente FROM registros WHERE id=?').bind(it.id).first();
+            if (prev && pf.rol === 'docente' && prev.docente !== pf.nombre) return J({ error: 'Sin permiso sobre ese registro' }, 403);
+          }
           const payload = JSON.stringify(it.payload || {});
           if (it.tipo === 'piar' && PROHIBIDO.some(rx => rx.test(payload))) return J({ error: 'PIAR: use solo código seudónimo, sin documentos, teléfonos ni correos' }, 422);
           const id = it.id || crypto.randomUUID();
           const hash = await sha256(payload);
           await env.DB.prepare(`INSERT OR REPLACE INTO registros(id, anio, periodo, tipo, docente, grado, area, semana, payload, evidencia_url, hash, creado_por)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id, it.anio, it.periodo, it.tipo, it.docente, it.grado || null, it.area || null,
-            it.semana || null, payload, it.evidencia_url || null, hash, usuario(req)).run();
+            it.semana || null, payload, it.evidencia_url || null, hash, pf.email).run();
           out.push({ id, hash });
         }
-        await env.DB.prepare('INSERT INTO bitacora(anio, accion, detalle, usuario) VALUES (?, "registro", ?, ?)')
-          .bind(items[0]?.anio || 0, `${items.length} registros`, usuario(req)).run();
+        await bitacora(env, items[0]?.anio || 0, 'registro', `${items.length} registro(s)`, pf);
         return J({ ok: true, guardados: out });
       }
 
+      // ---------- Indicadores ----------
+      if (p === '/api/indicadores') {
+        const per = url.searchParams.get('periodo');
+        const regs = await regsAnio(env, anioQ()); // se calcula con TODOS (normalización de observadores) y se filtra la salida
+        if (pf.rol === 'docente') return J({ version: VERSION, filas: [calcularDocente(regs, pf.nombre, per ? Number(per) : null)] });
+        const no = lectura(); if (no) return no;
+        return J(calcularTodo(regs, per ? Number(per) : null));
+      }
+      if (p === '/api/alertas') {
+        const r = (await env.DB.prepare('SELECT * FROM alertas WHERE anio=? AND resuelta=0 ORDER BY id DESC LIMIT 200').bind(anioQ()).all()).results;
+        return J(pf.rol === 'docente' ? r.filter(a => a.docente === pf.nombre) : r);
+      }
+      if (p === '/api/historico') {
+        const no = lectura(); if (no) return no;
+        const r = await env.DB.prepare(`SELECT s.anio, s.datos FROM snapshots s
+          JOIN (SELECT anio, MAX(fecha) f FROM snapshots GROUP BY anio) m ON m.anio=s.anio AND m.f=s.fecha ORDER BY s.anio`).all();
+        return J(r.results.map(x => ({ anio: x.anio, ...JSON.parse(x.datos) })));
+      }
       if (p === '/api/export') {
-        const anio = Number(url.searchParams.get('anio') || new Date().getFullYear());
+        const no = lectura(); if (no) return no;
+        const anio = anioQ();
         const [an, reg, lec] = await Promise.all([
-          env.DB.prepare('SELECT * FROM anios WHERE anio=?').bind(anio).first(),
-          env.DB.prepare('SELECT * FROM registros WHERE anio=?').bind(anio).all(),
+          env.DB.prepare('SELECT * FROM anios WHERE anio=?').bind(anio).first(), regsAnio(env, anio),
           env.DB.prepare('SELECT * FROM lecciones WHERE anio=?').bind(anio).all(),
         ]);
-        return J({ anio: an, registros: reg.results.map(x => ({ ...x, payload: JSON.parse(x.payload) })), lecciones: lec.results });
+        return J({ anio: an, registros: reg, lecciones: lec.results });
       }
       if (p === '/api/lecciones' && req.method === 'POST') {
-        if (!puedeEscribir(req, env)) return J({ error: 'sin permiso' }, 403);
+        const no = soloDir(); if (no) return no;
         const l = await req.json();
         await env.DB.prepare('INSERT INTO lecciones(anio, indicador, resultado, meta, causa_raiz, decision, responsable) VALUES (?,?,?,?,?,?,?)')
           .bind(l.anio, l.indicador, l.resultado, l.meta, l.causa_raiz, l.decision, l.responsable).run();
         return J({ ok: true });
       }
-      if (p === '/api/indicadores') {
-        const anio = Number(url.searchParams.get('anio') || new Date().getFullYear());
-        const per = url.searchParams.get('periodo');
-        const r = await env.DB.prepare('SELECT * FROM registros WHERE anio=?').bind(anio).all();
-        const regs = r.results.map(x => ({ ...x, payload: JSON.parse(x.payload) }));
-        return J(calcularTodo(regs, per ? Number(per) : null));
-      }
-      if (p === '/api/alertas') {
-        const anio = Number(url.searchParams.get('anio') || new Date().getFullYear());
-        const r = await env.DB.prepare('SELECT * FROM alertas WHERE anio=? AND resuelta=0 ORDER BY id DESC LIMIT 200').bind(anio).all();
-        return J(r.results);
-      }
-      if (p === '/api/historico') { // comparativo interanual automático
-        const r = await env.DB.prepare(`SELECT s.anio, s.datos FROM snapshots s
-          JOIN (SELECT anio, MAX(fecha) f FROM snapshots GROUP BY anio) m ON m.anio=s.anio AND m.f=s.fecha ORDER BY s.anio`).all();
-        return J(r.results.map(x => ({ anio: x.anio, ...JSON.parse(x.datos) })));
-      }
       if (p === '/api/calendario' && req.method === 'POST') {
-        if (!puedeEscribir(req, env)) return J({ error: 'sin permiso' }, 403);
+        const no = soloDir(); if (no) return no;
         const { anio, periodos } = await req.json();
         await env.DB.batch(periodos.map(x => env.DB.prepare('INSERT OR REPLACE INTO calendario VALUES (?,?,?,?,?)').bind(anio, x.periodo, x.inicio, x.fin, x.semanas)));
         return J({ ok: true });
       }
+
+      // ---------- Usuarios (solo directivos) ----------
+      if (p === '/api/usuarios' && req.method === 'GET') {
+        const no = soloDir(); if (no) return no;
+        const r = (await env.DB.prepare('SELECT email, nombre, cargo, rol, asignaciones, activo FROM usuarios ORDER BY nombre').all()).results;
+        const admins = (env.ADMINS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+        return J({ directivos: admins, usuarios: r.map(u => ({ ...u, asignaciones: JSON.parse(u.asignaciones || '[]') })) });
+      }
+      if (p === '/api/usuarios' && req.method === 'POST') {
+        const no = soloDir(); if (no) return no;
+        const u = await req.json();
+        const email = String(u.email || '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email) || !u.nombre) return J({ error: 'Correo y nombre son obligatorios' }, 400);
+        await env.DB.prepare(`INSERT INTO usuarios(email, nombre, cargo, rol, asignaciones, activo) VALUES (?,?,?,?,?,?)
+          ON CONFLICT(email) DO UPDATE SET nombre=excluded.nombre, cargo=excluded.cargo, asignaciones=excluded.asignaciones, activo=excluded.activo`)
+          .bind(email, u.nombre.trim(), u.cargo || 'Docente', 'docente', JSON.stringify(u.asignaciones || []), u.activo === 0 ? 0 : 1).run();
+        await bitacora(env, new Date().getFullYear(), 'usuario', `${email} (${u.activo === 0 ? 'desactivado' : 'activo'})`, pf);
+        return J({ ok: true });
+      }
+
+      // ---------- Sugerencias (todos) ----------
       if (p === '/api/sugerencias' && req.method === 'POST') {
-        // Cualquier usuario autenticado puede sugerir; se convierte en issue "mejora" que procesa el agente ingeniero-mejora-continua
         const { texto, pantalla } = await req.json();
         if (!texto || texto.length < 10) return J({ error: 'Describa la mejora en al menos 10 caracteres' }, 400);
         if (PROHIBIDO.some(rx => rx.test(texto))) return J({ error: 'No incluya documentos, teléfonos ni correos de estudiantes' }, 422);
-        await env.DB.prepare('INSERT INTO sugerencias(texto, pantalla, usuario) VALUES (?,?,?)').bind(texto, pantalla || '', usuario(req)).run();
+        await env.DB.prepare('INSERT INTO sugerencias(texto, pantalla, usuario) VALUES (?,?,?)').bind(texto, pantalla || '', pf.email).run();
         if (env.GH_TOKEN && env.GH_REPO) {
           await fetch(`https://api.github.com/repos/${env.GH_REPO}/issues`, { method: 'POST',
             headers: { authorization: `Bearer ${env.GH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'centec-planeacion' },
-            body: JSON.stringify({ title: 'Sugerencia: ' + texto.slice(0, 70), body: `${texto}\n\nPantalla: ${pantalla || '—'}\nEnviada desde el aplicativo.`, labels: ['mejora'] }) });
+            body: JSON.stringify({ title: 'Sugerencia: ' + texto.slice(0, 70), body: `${texto}\n\nPantalla: ${pantalla || '—'}\nRol: ${pf.rol}\nEnviada desde el aplicativo.`, labels: ['mejora'] }) });
         }
         return J({ ok: true });
       }
-      if (p.startsWith('/api/')) return J({ error: 'no encontrado' }, 404);
-      return env.ASSETS.fetch(req);
+      return J({ error: 'no encontrado' }, 404);
     } catch (e) {
       return J({ error: String(e.message || e) }, 500);
     }

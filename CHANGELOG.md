@@ -5,6 +5,13 @@ Toda mejora cita su origen (issue, auditoría, lección de cierre o norma) y có
 
 ## Sin publicar
 
+## [1.3.0] — 2026-10-22
+### Cambiado
+- Inicio de sesión propio (correo + clave) en lugar de Cloudflare Access, que es gratis solo hasta 50 usuarios (el colegio tiene ~78).
+### Agregado
+- Tres roles: administrador, directivo y docente. Director de grupo con consulta de todo su curso (pestaña «Mi curso»).
+- Claves temporales para cuentas nuevas y restablecimiento; cambio obligatorio en el primer ingreso; bloqueo por intentos fallidos.
+
 ## [1.2.0] — 2026-10-21
 ### Agregado
 - Control de acceso por roles. Directivos con acceso total (rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco) definidos solo por el secreto ADMINS. Cada docente ve y registra únicamente lo suyo, en los grados y áreas asignados. Cuadernos, observación y encuesta solo los registran directivos.

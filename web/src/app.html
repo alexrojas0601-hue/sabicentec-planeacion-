@@ -86,6 +86,7 @@ details summary{cursor:pointer;font-weight:600}
 <header class="top"><div class="top-in">
   <div class="brand"><b>Planeación CENTEC</b><span>Seguimiento y auditoría académica</span></div>
   <label class="small muted" id="verComoL" hidden>Ver como <select id="verComo"></select></label>
+  <span id="yoBox" class="small muted" hidden><span id="yoNom"></span> <button class="ghost" id="salir" type="button">Salir</button></span>
   <label class="small muted">Año <select id="selAnio"></select></label>
   <label class="small muted">Período <select id="selPer"><option value="">Año completo</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
   <nav class="tabs" role="tablist" id="tabs"></nav>
@@ -101,10 +102,12 @@ const DATOS = /*@@DATOS@@*/{};
 // ---------- Estado ----------
 const LS = 'centec-planeacion-v1';
 const st = { api: false, anio: 2027, periodo: '', tab: 'tablero', regs: {}, anios: [], cerrados: [], docSel: null, demo: true, yo: null, usuarios: [] };
-const DIRECTIVOS_DEMO = ['Rectoría', 'Vicerrectoría', 'Coordinación académica', 'Paula Andrea Rojas Cairasco', 'Daniela Rojas Cairasco'];
-const esDir = () => st.yo?.rol === 'directivo';
+const ROLES = { admin: 'Administrador (gestiona usuarios)', directivo: 'Directivo (ve todo el año escolar)', docente: 'Docente (solo lo asignado)' };
+const esAdmin = () => st.yo?.rol === 'admin';
+const esDir = () => st.yo?.rol === 'admin' || st.yo?.rol === 'directivo';
+const dirige = g => (st.yo?.direccion || []).includes(g);
 const TIPOS_DOCENTE = ['planeador', 'ejecucion', 'resultado', 'piar', 'transversal'];
-const misRegs = () => esDir() ? regsActuales() : regsActuales().filter(r => r.docente === st.yo?.nombre);
+const misRegs = () => esDir() ? regsActuales() : regsActuales().filter(r => r.docente === st.yo?.nombre || dirige(r.grado));
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const f1 = x => x == null ? '—' : (Math.round(x * 10) / 10).toFixed(1);
@@ -144,7 +147,11 @@ function usuariosDemo() {
     [['6°', 'Matemáticas'], ['7°', 'Matemáticas'], ['8°', 'Matemáticas'], ['9°', 'Matemáticas']], [['6°', 'Lenguaje'], ['7°', 'Lenguaje'], ['8°', 'Lenguaje'], ['9°', 'Lenguaje'], ['10°', 'Lenguaje'], ['11°', 'Lenguaje']],
     [['6°', 'Ciencias Naturales'], ['7°', 'Ciencias Naturales'], ['8°', 'Ciencias Naturales'], ['9°', 'Ciencias Naturales'], ['10°', 'Química'], ['11°', 'Física']]];
   const nom = ['Docente A (Transición)', 'Docente B (1°)', 'Docente C (3°)', 'Docente D (5°)', 'Docente E (Inglés primaria)', 'Docente F (Matemáticas 6°–9°)', 'Docente G (Lenguaje 6°–11°)', 'Docente H (Ciencias 6°–11°)'];
-  return nom.map((n, i) => ({ email: `docente${'abcdefgh'[i]}@ejemplo.edu.co`, nombre: n, cargo: 'Docente', rol: 'docente', activo: 1, asignaciones: asig[i].map(([grado, area]) => ({ grado, area })) }));
+  const dir = [['Transición'], ['1°'], ['3°'], ['5°'], [], ['8°'], ['10°'], []];
+  return [
+    { email: 'coordinacion@ejemplo.edu.co', nombre: 'Coordinación académica (ejemplo)', cargo: 'Coordinadora académica', rol: 'admin', activo: 1, asignaciones: [], direccion: [] },
+    { email: 'convivencia@ejemplo.edu.co', nombre: 'Coordinación de convivencia (ejemplo)', cargo: 'Coordinador de convivencia', rol: 'directivo', activo: 1, asignaciones: [], direccion: [] },
+    ...nom.map((n, i) => ({ email: `docente${'abcdefgh'[i]}@ejemplo.edu.co`, nombre: n, cargo: 'Docente', rol: 'docente', activo: 1, asignaciones: asig[i].map(([grado, area]) => ({ grado, area })), direccion: dir[i] }))];
 }
 
 // ---------- API (Cloudflare) o modo local ----------
@@ -171,7 +178,8 @@ async function enviar(reg) {
 // ---------- Pestañas ----------
 const TABS_DIR = [['tablero', 'Tablero'], ['registrar', 'Registrar evidencia'], ['comparar', 'Año vs año'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['usuarios', 'Usuarios'], ['agentes', 'Agentes y automatización'], ['datos', 'Años y datos']];
 const TABS_DOC = [['tablero', 'Mi tablero'], ['registrar', 'Registrar mi evidencia'], ['normativa', 'Normativa'], ['documentos', 'Documentos'], ['sugerir', 'Sugerir mejora']];
-const tabsRol = () => esDir() ? TABS_DIR : TABS_DOC;
+const tabsRol = () => esAdmin() ? TABS_DIR : esDir() ? TABS_DIR.filter(([k]) => k !== 'usuarios')
+  : (st.yo?.direccion || []).length ? [...TABS_DOC.slice(0, 2), ['curso', 'Mi curso'], ...TABS_DOC.slice(2)] : TABS_DOC;
 function pintarTabs() {
   if (!tabsRol().some(([k]) => k === st.tab)) st.tab = 'tablero';
   $('#tabs').innerHTML = tabsRol().map(([k, t]) => `<button role="tab" aria-selected="${st.tab === k}" data-t="${k}">${t}</button>`).join('');
@@ -179,7 +187,8 @@ function pintarTabs() {
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (!b) return; st.tab = b.dataset.t; st.docSel = null; render(); });
 $('#selAnio').addEventListener('change', async e => { st.anio = Number(e.target.value); await cargarAnio(st.anio); render(); });
 $('#selPer').addEventListener('change', e => { st.periodo = e.target.value; render(); });
-$('#verComo').addEventListener('change', e => { const v = e.target.value; st.yo = v === '' ? { rol: 'directivo', nombre: 'Vista previa', email: '' } : { ...st.usuarios[+v], rol: 'docente' }; st.docSel = null; st.tab = 'tablero'; render(); toast(v === '' ? 'Viendo como directivo' : 'Viendo como ' + st.usuarios[+v].nombre); });
+$('#verComo').addEventListener('change', e => { const v = e.target.value; st.yo = v === '' ? { rol: 'admin', nombre: 'Vista previa', email: '' } : { ...st.usuarios[+v] }; st.docSel = null; st.tab = 'tablero'; render(); toast('Viendo como ' + (v === '' ? 'administrador' : st.usuarios[+v].nombre)); });
+$('#salir').addEventListener('click', async () => { await fetch('/api/logout', { method: 'POST' }); location.reload(); });
 
 const pill = s => `<span class="pill ${s.color}">${esc(s.nivel.split(' — ')[0])}</span>`;
 const NOMBRES = Object.fromEntries((DATOS.indicadores?.componentes || []).map(c => [c.id, `${c.codigo} ${c.nombre}`]));
@@ -352,21 +361,84 @@ function vSugerir() {
 
 function vUsuarios() {
   const u = st.usuarios || [];
-  const ed = st.uEdit || { email: '', nombre: '', cargo: 'Docente', asignaciones: [], activo: 1 };
-  const tiene = (g, a) => ed.asignaciones.some(x => x.grado === g && x.area === a);
-  return `<section class="card"><h1>Usuarios y permisos</h1>
-  <p class="small">Acceso total: ${DIRECTIVOS_DEMO.map(esc).join(', ')}. ${st.api ? 'Se configuran con el secreto ADMINS del servidor, no desde esta pantalla, para que nadie pueda darse permisos a sí mismo.' : ''}</p>
-  <p class="small muted">Cada docente entra con su correo institucional y solo ve y registra lo de sus grados y áreas. No ve el tablero de otros docentes, la comparación institucional, los usuarios ni la configuración.</p>
-  <div class="tbl"><table><thead><tr><th>Docente</th><th>Correo</th><th>Grados y áreas</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${u.map((x, i) => `<tr><td>${esc(x.nombre)}</td><td class="small mono">${esc(x.email)}</td><td class="small">${esc(x.asignaciones.map(a => a.grado + ' ' + (a.area === '*' ? '(todas)' : a.area)).join(' · '))}</td><td>${x.activo ? '<span class="pill verde">activo</span>' : '<span class="pill gris">inactivo</span>'}</td><td><button class="ghost" data-uedit="${i}">Editar</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Aún no hay docentes registrados.</td></tr>'}
+  const ed = st.uEdit || { email: '', nombre: '', cargo: '', rol: 'docente', asignaciones: [], direccion: [], activo: 1 };
+  const tiene = (g, a) => (ed.asignaciones || []).some(x => x.grado === g && x.area === a);
+  const resumen = x => x.rol !== 'docente' ? '<span class="muted">Todo el año escolar</span>'
+    : esc((x.asignaciones || []).map(a => a.grado + ' ' + (a.area === '*' ? '(todas)' : a.area)).join(' · ') || '—') + ((x.direccion || []).length ? ` <span class="chip">Director ${esc(x.direccion.join(', '))}</span>` : '');
+  const filtro = (st.uFiltro || '').toLowerCase();
+  const lista = u.filter(x => !filtro || (x.nombre + ' ' + x.email).toLowerCase().includes(filtro));
+  const cnt = r => u.filter(x => x.rol === r && x.activo).length;
+  return `${st.claveTemp ? `<div class="banner"><b>Clave temporal para ${esc(st.claveTemp.email)}:</b> <span class="mono" style="font-size:18px">${esc(st.claveTemp.clave)}</span><br>Entréguela en persona o por un medio privado. Solo se muestra esta vez; en su primer ingreso la persona creará su propia clave. <button class="ghost" id="ct-ok">Entendido</button></div>` : ''}
+  <section class="card"><h1>Usuarios y permisos</h1>
+  <div class="grid"><div class="kpi"><span class="l">Administradores</span><span class="v">${cnt('admin')}</span></div><div class="kpi"><span class="l">Directivos</span><span class="v">${cnt('directivo')}</span></div><div class="kpi"><span class="l">Docentes activos</span><span class="v">${cnt('docente')}</span></div></div>
+  <p class="small muted">Administradores: gestionan usuarios y ven todo. Directivos: ven y registran todo el año escolar. Docentes: solo las combinaciones curso + área que se marquen; si dirigen un curso, consultan todo lo de ese curso.</p>
+  <label class="small muted" style="display:grid;gap:4px;max-width:360px">Buscar<input id="u-fil" value="${esc(st.uFiltro || '')}" placeholder="Nombre o correo"></label>
+  <div class="tbl"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acceso</th><th>Estado</th><th></th></tr></thead><tbody>
+  ${lista.map(x => `<tr><td>${esc(x.nombre)}<br><span class="small muted">${esc(x.cargo || '')}</span></td><td class="small mono">${esc(x.email)}</td><td class="small">${esc(({ admin: 'Administrador', directivo: 'Directivo', docente: 'Docente' })[x.rol] || x.rol)}</td><td class="small">${resumen(x)}</td><td>${x.activo ? (x.debe_cambiar && st.api ? '<span class="pill amarillo">sin primer ingreso</span>' : '<span class="pill verde">activo</span>') : '<span class="pill gris">inactivo</span>'}</td><td style="white-space:nowrap"><button class="ghost" data-uedit="${u.indexOf(x)}">Editar</button> ${st.api ? `<button class="ghost" data-ureset="${esc(x.email)}">Nueva clave</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Sin resultados.</td></tr>'}
   </tbody></table></div></section>
-  <section class="card"><h2>${ed.email ? 'Editar docente' : 'Agregar docente'}</h2>
-  <form id="fusr" class="reg"><div class="row"><label>Nombre completo (igual al de sus registros)<input id="u-nom" required value="${esc(ed.nombre)}"></label><label>Correo institucional<input id="u-mail" type="email" required value="${esc(ed.email)}" ${ed.email ? 'readonly' : ''}></label><label>Estado<select id="u-act"><option value="1" ${ed.activo ? 'selected' : ''}>Activo</option><option value="0" ${ed.activo ? '' : 'selected'}>Inactivo (sin acceso)</option></select></label></div>
-  <h3>Grados y áreas asignados</h3><p class="small muted">Marque «Todas» para docentes de grado (primaria integrada).</p>
-  <div class="tbl"><table><thead><tr><th>Grado</th><th>Todas</th>${AREAS.map(a => `<th style="white-space:normal;min-width:70px">${esc(a)}</th>`).join('')}</tr></thead><tbody>
-  ${GRADOS.map(g => `<tr><td><b>${g}</b></td><td><input type="checkbox" data-g="${g}" data-a="*" ${tiene(g, '*') ? 'checked' : ''} aria-label="${g} todas"></td>${AREAS.map(a => `<td><input type="checkbox" data-g="${g}" data-a="${esc(a)}" ${tiene(g, a) ? 'checked' : ''} aria-label="${g} ${esc(a)}"></td>`).join('')}</tr>`).join('')}
-  </tbody></table></div>
-  <div class="row"><button type="submit">Guardar docente</button>${ed.email ? '<button type="button" class="ghost" id="u-nuevo">Agregar otro</button>' : ''}</div></form></section>`;
+  <section class="card"><h2>${ed.email ? 'Editar usuario' : 'Agregar usuario'}</h2>
+  <form id="fusr" class="reg"><div class="row">
+   <label>Nombre completo (igual al de sus registros)<input id="u-nom" required value="${esc(ed.nombre)}"></label>
+   <label>Correo<input id="u-mail" type="email" required value="${esc(ed.email)}" ${ed.email ? 'readonly' : ''}></label>
+   <label>Cargo<input id="u-cargo" value="${esc(ed.cargo || '')}" placeholder="Docente, coordinador…"></label>
+   <label>Rol<select id="u-rol">${Object.entries(ROLES).map(([k, t]) => `<option value="${k}" ${ed.rol === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+   <label>Estado<select id="u-act"><option value="1" ${ed.activo ? 'selected' : ''}>Activo</option><option value="0" ${ed.activo ? '' : 'selected'}>Inactivo (sin acceso)</option></select></label></div>
+  <div id="u-docente" ${ed.rol === 'docente' ? '' : 'hidden'}>
+   <h3>Director de grupo</h3><p class="small muted">Puede consultar todo lo registrado en estos cursos.</p>
+   <div class="row">${GRADOS.map(g => `<label style="flex:0 0 auto;display:flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" data-dir="${g}" ${(ed.direccion || []).includes(g) ? 'checked' : ''}> ${g}</label>`).join('')}</div>
+   <h3>Cursos y áreas que dicta</h3><p class="small muted">Marque «Todas» para docentes de curso en primaria integrada.</p>
+   <div class="tbl"><table><thead><tr><th>Curso</th><th>Todas</th>${AREAS.map(a => `<th style="white-space:normal;min-width:70px">${esc(a)}</th>`).join('')}</tr></thead><tbody>
+   ${GRADOS.map(g => `<tr><td><b>${g}</b></td><td><input type="checkbox" data-g="${g}" data-a="*" ${tiene(g, '*') ? 'checked' : ''} aria-label="${g} todas"></td>${AREAS.map(a => `<td><input type="checkbox" data-g="${g}" data-a="${esc(a)}" ${tiene(g, a) ? 'checked' : ''} aria-label="${g} ${esc(a)}"></td>`).join('')}</tr>`).join('')}
+   </tbody></table></div></div>
+  <div class="row"><button type="submit">Guardar usuario</button>${ed.email ? '<button type="button" class="ghost" id="u-nuevo">Agregar otro</button>' : ''}</div></form></section>`;
+}
+
+function vLogin() {
+  return `<section class="card" style="max-width:440px;margin:6vh auto 0"><h1>Ingresar</h1>
+  <p class="small muted">Planeación CENTEC · Use el correo y la clave que le entregó coordinación académica.</p>
+  <form id="flogin" class="reg"><label class="small muted" style="display:grid;gap:4px">Correo<input id="l-mail" type="email" autocomplete="username" required></label>
+  <label class="small muted" style="display:grid;gap:4px">Clave<input id="l-clave" type="password" autocomplete="current-password" required></label>
+  <p class="small" id="l-err" style="color:var(--bad)" hidden></p><button type="submit">Ingresar</button></form>
+  <p class="small muted">¿Olvidó su clave? Pídala a coordinación académica, vicerrectoría o secretaría académica: ellas la restablecen desde la app.</p></section>`;
+}
+function vCambioClave() {
+  return `<section class="card" style="max-width:480px;margin:6vh auto 0"><h1>Cree su clave personal</h1>
+  <p class="small">Es su primer ingreso o le restablecieron la clave. Elija una clave de al menos 10 caracteres, con letras y números. Nadie más la conocerá, ni siquiera coordinación.</p>
+  <form id="fclave" class="reg"><label class="small muted" style="display:grid;gap:4px">Clave nueva<input id="c-n1" type="password" autocomplete="new-password" minlength="10" required></label>
+  <label class="small muted" style="display:grid;gap:4px">Repita la clave<input id="c-n2" type="password" autocomplete="new-password" minlength="10" required></label>
+  <p class="small" id="c-err" style="color:var(--bad)" hidden></p><button type="submit">Guardar y entrar</button></form></section>`;
+}
+function wireAcceso() {
+  const fl = $('#flogin'); if (fl) fl.onsubmit = async e => { e.preventDefault();
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: $('#l-mail').value, clave: $('#l-clave').value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const er = $('#l-err'); er.textContent = j.error || 'No se pudo ingresar'; er.hidden = false; return; }
+    location.reload(); };
+  const fc = $('#fclave'); if (fc) fc.onsubmit = async e => { e.preventDefault();
+    const a = $('#c-n1').value, b = $('#c-n2').value, er = $('#c-err');
+    if (a !== b) { er.textContent = 'Las dos claves no coinciden.'; er.hidden = false; return; }
+    const r = await fetch('/api/clave', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nueva: a }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { er.textContent = j.error || 'No se pudo guardar'; er.hidden = false; return; }
+    location.reload(); };
+}
+function vCurso() {
+  const cursos = st.yo?.direccion || [];
+  const R = regsActuales().filter(r => cursos.includes(r.grado) && (!st.periodo || String(r.periodo) === st.periodo));
+  const NT = { planeador: 'Planeador', ejecucion: 'Ejecución', cuaderno: 'Cuadernos', observacion: 'Observación', resultado: 'Pre/Post', piar: 'PIAR', transversal: 'Transversal', encuesta: 'Encuesta', lectura: 'Lectura', informe: 'Informe' };
+  return `<section class="card"><h1>Mi curso · ${esc(cursos.join(', '))}</h1>
+  <p class="small muted">Como director de grupo consulta todo lo registrado en su curso, de todas las áreas. Es solo lectura: cada docente registra lo suyo.</p></section>
+  ${cursos.map(g => { const rg = R.filter(r => r.grado === g); const areas = [...new Set(rg.map(r => r.area || '—'))].sort();
+    const g_ = rg.filter(r => r.tipo === 'resultado').flatMap(r => (r.payload.estudiantes || []).filter(e => e.pre <= 90).map(e => I.hake(e.pre, e.post))).filter(x => x != null);
+    return `<section class="card"><h2>${esc(g)}</h2><div class="grid">
+      <div class="kpi"><span class="l">Registros</span><span class="v">${rg.length}</span></div>
+      <div class="kpi"><span class="l">Áreas con registro</span><span class="v">${areas.length}</span></div>
+      <div class="kpi"><span class="l">Ganancia de aprendizaje (g)</span><span class="v">${g_.length ? (g_.reduce((a, b) => a + b) / g_.length).toFixed(2) : '—'}</span></div>
+      <div class="kpi"><span class="l">Casos PIAR (códigos)</span><span class="v">${new Set(rg.filter(r => r.tipo === 'piar').map(r => r.payload.codigo)).size}</span></div></div>
+    <div class="tbl"><table><thead><tr><th>Área</th><th>Docente</th>${Object.values(NT).slice(0, 7).map(t => `<th>${t}</th>`).join('')}</tr></thead><tbody>
+    ${[...new Set(rg.map(r => (r.area || '—') + '|' + r.docente))].sort().map(k => { const [a, d] = k.split('|'); const x = rg.filter(r => (r.area || '—') === a && r.docente === d);
+      return `<tr><td>${esc(a)}</td><td>${esc(d)}</td>${Object.keys(NT).slice(0, 7).map(t => `<td class="n">${x.filter(r => r.tipo === t).length || '—'}</td>`).join('')}</tr>`; }).join('') || '<tr><td colspan="9" class="muted">Sin registros en este curso todavía.</td></tr>'}
+    </tbody></table></div></section>`; }).join('')}`;
 }
 
 function vAgentes() {
@@ -387,9 +459,9 @@ function vAgentes() {
 function vDatos() {
   return `${bannerDemo()}<section class="two">
   <div class="card"><h2>Años de planeación</h2><div class="tbl"><table><thead><tr><th>Año</th><th>Registros</th><th>Estado</th><th></th></tr></thead><tbody>
-  ${st.anios.map(a => `<tr><td class="mono">${a}</td><td class="n">${(st.regs[a] || []).length}</td><td>${st.cerrados.includes(a) ? '<span class="pill gris">cerrado</span>' : '<span class="pill verde">abierto</span>'}</td><td>${st.cerrados.includes(a) ? '' : `<button class="ghost" data-cerrar="${a}">Cerrar año</button>`}</td></tr>`).join('')}
+  ${st.anios.map(a => `<tr><td class="mono">${a}</td><td class="n">${(st.regs[a] || []).length}</td><td>${st.cerrados.includes(a) ? '<span class="pill gris">cerrado</span>' : '<span class="pill verde">abierto</span>'}</td><td>${st.cerrados.includes(a) || !esAdmin() ? '' : `<button class="ghost" data-cerrar="${a}">Cerrar año</button>`}</td></tr>`).join('')}
   </tbody></table></div>
-  <div class="row"><button id="nuevoAnio">Abrir año ${Math.max(...st.anios) + 1}</button></div>
+  ${esDir() ? `<div class="row"><button id="nuevoAnio">Abrir año ${Math.max(...st.anios) + 1}</button></div>` : ''}
   <div id="confirmar"></div>
   <p class="small muted">Cerrar un año lo congela (solo lectura) y lo vuelve línea base del siguiente. El cierre automático corre el 1 de diciembre; la apertura del año siguiente, el 15 de octubre.</p></div>
   <div class="card"><h2>Exportar e importar</h2><p class="small">El JSON exportado es el insumo de los agentes de auditoría y del comparativo interanual en GitHub.</p>
@@ -399,13 +471,18 @@ function vDatos() {
 }
 
 function render() {
-  if (st.sinAcceso) { $('#tabs').innerHTML = ''; $('#main').innerHTML = `<section class="card"><h1>Sin acceso</h1><p>${esc(st.sinAcceso)}</p></section>`; return; }
+  if (st.pantalla === 'login' || st.pantalla === 'clave') {
+    $('#tabs').innerHTML = ''; document.querySelectorAll('.top-in > label').forEach(l => l.hidden = true);
+    $('#main').innerHTML = st.pantalla === 'login' ? vLogin() : vCambioClave(); wireAcceso(); return;
+  }
+  document.querySelectorAll('.top-in > label:not(#verComoL)').forEach(l => l.hidden = false);
   const vc = $('#verComo');
-  if (!st.api) { $('#verComoL').hidden = false; vc.innerHTML = `<option value="">Directivo (acceso total)</option>` + st.usuarios.map((u, i) => `<option value="${i}" ${st.yo?.email === u.email ? 'selected' : ''}>${esc(u.nombre)}</option>`).join(''); }
+  if (!st.api) { $('#verComoL').hidden = false; vc.innerHTML = `<option value="">Administrador (vista previa)</option>` + st.usuarios.map((u, i) => `<option value="${i}" ${st.yo?.email === u.email ? 'selected' : ''}>${esc(u.nombre)}</option>`).join(''); }
+  else { $('#yoBox').hidden = false; $('#yoNom').textContent = `${st.yo.nombre} · ${({ admin: 'Administrador', directivo: 'Directivo', docente: 'Docente' })[st.yo.rol] || ''}`; }
   pintarTabs();
   $('#selAnio').innerHTML = st.anios.map(a => `<option ${a === st.anio ? 'selected' : ''}>${a}</option>`).join('');
   $('#selPer').value = st.periodo;
-  const v = { tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, documentos: vDocumentos, usuarios: vUsuarios, sugerir: vSugerir, agentes: vAgentes, datos: vDatos }[st.tab];
+  const v = { curso: vCurso, tablero: vTablero, registrar: vRegistrar, comparar: vComparar, normativa: vNormativa, documentos: vDocumentos, usuarios: vUsuarios, sugerir: vSugerir, agentes: vAgentes, datos: vDatos }[st.tab];
   $('#main').innerHTML = v();
   wire();
 }
@@ -426,23 +503,34 @@ function wire() {
     (st.sugerencias ||= []).push({ texto, fecha: new Date().toISOString() }); guardar(); toast(st.api ? 'Sugerencia enviada al equipo de mejora' : 'Sugerencia guardada en este navegador (se envía cuando la app esté en Cloudflare)'); render(); };
   document.querySelectorAll('[data-uedit]').forEach(b => b.onclick = () => { st.uEdit = JSON.parse(JSON.stringify(st.usuarios[+b.dataset.uedit])); render(); });
   const un = $('#u-nuevo'); if (un) un.onclick = () => { st.uEdit = null; render(); };
+  const ur = $('#u-rol'); if (ur) ur.onchange = () => { $('#u-docente').hidden = ur.value !== 'docente'; };
+  const uf = $('#u-fil'); if (uf) uf.oninput = () => { st.uFiltro = uf.value; const pos = uf.selectionStart; render(); const n = $('#u-fil'); n.focus(); n.setSelectionRange(pos, pos); };
+  const cto = $('#ct-ok'); if (cto) cto.onclick = () => { st.claveTemp = null; render(); };
+  document.querySelectorAll('[data-ureset]').forEach(b => b.onclick = async () => {
+    const r = await fetch('/api/usuarios/restablecer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: b.dataset.ureset }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo restablecer'); return; }
+    st.claveTemp = { email: b.dataset.ureset, clave: j.clave_temporal }; render(); window.scrollTo(0, 0); });
   const fu = $('#fusr'); if (fu) fu.onsubmit = async e => { e.preventDefault();
-    const u = { email: $('#u-mail').value.trim().toLowerCase(), nombre: $('#u-nom').value.trim(), cargo: 'Docente', activo: +$('#u-act').value,
-      asignaciones: [...document.querySelectorAll('#fusr input[type=checkbox]:checked')].map(c => ({ grado: c.dataset.g, area: c.dataset.a })) };
-    if (st.api) { const r = await fetch('/api/usuarios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(u) }); const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo guardar'); return; } }
-    const i = st.usuarios.findIndex(x => x.email === u.email); if (i >= 0) st.usuarios[i] = u; else st.usuarios.push(u);
-    st.uEdit = null; guardar(); toast('Docente guardado'); render(); };
-  const bd = $('#borrarDemo'); if (bd) bd.onclick = () => { st.regs = { 2027: [] }; st.anios = [2027]; st.cerrados = []; st.anio = 2027; st.demo = false; st.usuarios = []; st.yo = { rol: 'directivo', nombre: 'Vista previa', email: '' }; guardar(); toast('Datos de ejemplo borrados'); render(); };
+    const rol = $('#u-rol').value;
+    const u = { email: $('#u-mail').value.trim().toLowerCase(), nombre: $('#u-nom').value.trim(), cargo: $('#u-cargo').value.trim(), rol, activo: +$('#u-act').value,
+      asignaciones: rol === 'docente' ? [...document.querySelectorAll('#fusr input[data-g]:checked')].map(c => ({ grado: c.dataset.g, area: c.dataset.a })) : [],
+      direccion: rol === 'docente' ? [...document.querySelectorAll('#fusr input[data-dir]:checked')].map(c => c.dataset.dir) : [] };
+    let temp = null;
+    if (st.api) { const r = await fetch('/api/usuarios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(u) }); const j = await r.json().catch(() => ({})); if (!r.ok) { toast(j.error || 'No se pudo guardar'); return; } temp = j.clave_temporal; }
+    const i = st.usuarios.findIndex(x => x.email === u.email); if (i >= 0) st.usuarios[i] = { ...st.usuarios[i], ...u }; else st.usuarios.push({ ...u, debe_cambiar: 1 });
+    st.uEdit = null; if (temp) st.claveTemp = { email: u.email, clave: temp }; guardar(); toast('Usuario guardado'); render(); if (temp) window.scrollTo(0, 0); };
+  const bd = $('#borrarDemo'); if (bd) bd.onclick = () => { st.regs = { 2027: [] }; st.anios = [2027]; st.cerrados = []; st.anio = 2027; st.demo = false; st.usuarios = []; st.yo = { rol: 'admin', nombre: 'Vista previa', email: '' }; guardar(); toast('Datos de ejemplo borrados'); render(); };
 }
 
 (async function inicio() {
   st.api = await detectarApi();
   if (st.api) {
     st.demo = false;
-    const ry = await fetch('/api/yo');
-    if (!ry.ok) { const j = await ry.json().catch(() => ({})); st.sinAcceso = j.error || 'Su correo no está autorizado.'; render(); return; }
+    const ry = await fetch('/api/yo', { cache: 'no-store' });
+    if (ry.status === 401) { st.pantalla = 'login'; render(); return; }
     st.yo = await ry.json();
-    if (esDir()) { const ru = await fetch('/api/usuarios'); if (ru.ok) st.usuarios = (await ru.json()).usuarios; }
+    if (st.yo.debe_cambiar) { st.pantalla = 'clave'; render(); return; }
+    if (esAdmin()) { const ru = await fetch('/api/usuarios'); if (ru.ok) st.usuarios = (await ru.json()).usuarios; }
     const a = await (await fetch('/api/anios')).json();
     st.anios = a.map(x => x.anio); st.cerrados = a.filter(x => x.cerrado).map(x => x.anio);
     st.anio = st.anios.includes(new Date().getFullYear()) ? new Date().getFullYear() : st.anios.at(-1);
@@ -451,7 +539,7 @@ function wire() {
   } else if (!cargarLocal()) {
     st.regs = { 2026: demo(2026, -0.06), 2027: demo(2027, 0) }; st.anios = [2026, 2027]; st.cerrados = [2026]; st.anio = 2027; st.demo = true;
   }
-  if (!st.api) { if (!st.usuarios?.length) st.usuarios = usuariosDemo(); if (!st.yo) st.yo = { rol: 'directivo', nombre: 'Vista previa', email: '' }; }
+  if (!st.api) { if (!st.usuarios?.length) st.usuarios = usuariosDemo(); if (!st.yo || st.yo.rol === 'directivo' && st.yo.nombre === 'Vista previa') st.yo = { rol: 'admin', nombre: 'Vista previa', email: '' }; }
   render();
 })();
 </script>

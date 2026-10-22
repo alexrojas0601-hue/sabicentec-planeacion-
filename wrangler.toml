@@ -14,18 +14,17 @@ run_worker_first = ["/api/*", "/descargas/*"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "sabicentec-planeacion"   # debe coincidir con el Worker creado en Cloudflare
-database_id = "03a8ddb5-9dc6-46a2-8e3e-6a6e966906d2"   # creada el 21-oct-2026, migraciones 0001–0004 aplicadas
+database_name = "centec-planeacion"
+database_id = "03a8ddb5-9dc6-46a2-8e3e-6a6e966906d2"   # creada el 21-oct-2026
 migrations_dir = "worker/migrations"
 
-# ACCESO (secretos, nunca en el repositorio):
-#   npx wrangler secret put ADMINS        → correos con acceso total, separados por coma:
-#        rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco
-#   npx wrangler secret put AGENTES_TOKEN → clave larga aleatoria; la usan los GitHub Actions (solo lectura)
-#   ACCESS_TEAM  → nombre del equipo de Cloudflare Zero Trust (lo que va antes de .cloudflareaccess.com)
-#   ACCESS_AUD   → «Application Audience (AUD) Tag» de la aplicación de Access de planeacion.sabicentec.com
-#   Sin ACCESS_TEAM y ACCESS_AUD nadie entra: el servidor solo acepta identidades firmadas por Cloudflare Access.
-# Los docentes se dan de alta desde la pestaña «Usuarios» del aplicativo.
+# ACCESO (secretos, nunca en el repositorio; se cargan en Cloudflare → Settings → Variables and secrets):
+#   ADMINS        → correos de los primeros administradores, separados por coma
+#                   (rectoría, coordinación académica, vicerrectoría, secretaría académica)
+#   CLAVE_INICIAL → clave de un solo uso (mín. 10 caracteres) para el primer ingreso de esos administradores;
+#                   al entrar, el sistema les obliga a crear su clave personal. Luego se puede borrar.
+#   AGENTES_TOKEN → clave larga aleatoria; la usan los GitHub Actions (solo lectura)
+# El resto del equipo (directivos y docentes) lo crean los administradores en la pestaña «Usuarios».
 
 # Automatización: todos los días 6:00 a. m. Colombia (11:00 UTC)
 [triggers]

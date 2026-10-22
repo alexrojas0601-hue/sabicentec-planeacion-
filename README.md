@@ -89,12 +89,16 @@ Abra `web/index.html` en el navegador: funciona en modo local con datos de ejemp
 
 ## Quién ve qué
 
-| Perfil | Qué puede hacer |
+| Rol | Qué puede hacer |
 |---|---|
-| **Directivos** — rectoría, vicerrectoría, coordinación académica, Paula Andrea Rojas Cairasco, Daniela Rojas Cairasco | Todo: tablero institucional, todos los docentes, registrar cualquier evidencia, comparativo año vs año, usuarios, agentes, abrir y cerrar años. Se configuran con el secreto `ADMINS` (lista de correos), nunca desde la app. |
-| **Docente** | Solo su tablero y sus registros, en los grados y áreas que coordinación le asignó en la pestaña «Usuarios». Registra planeador, ejecución, pre/post, PIAR y proyectos transversales. No registra cuadernos, observación ni encuesta: nadie se califica a sí mismo. |
-| **Agentes (GitHub)** | Solo lectura, con el secreto `AGENTES_TOKEN`, para auditorías y cierres. |
-| Cualquier otro correo | Sin acceso. |
+| **Administrador** (coordinación académica, vicerrectoría, secretaría académica, rectoría) | Todo, y además crea usuarios, asigna roles, cursos y áreas, y restablece claves. |
+| **Directivo** (equipo directivo, ~8 personas) | Ve y registra todo el año escolar. No gestiona usuarios. |
+| **Docente** (~70) | Solo las combinaciones curso + área que le asignen. Si es director de grupo, consulta todo lo de su curso (solo lectura). Registra planeador, ejecución, pre/post, PIAR y proyectos; no registra cuadernos, observación ni encuesta. |
+| **Agentes (GitHub)** | Solo lectura con `AGENTES_TOKEN`. |
+
+**Ingreso:** correo + clave personal (inicio de sesión propio, sin costo por usuario). Cada cuenta nueva recibe una clave temporal que el administrador entrega en persona; en el primer ingreso la persona crea su clave. Claves con hash PBKDF2, bloqueo tras 5 intentos fallidos, sesiones de 12 horas.
+
+**Arranque:** en Cloudflare → Worker `sabicentec-planeacion` → Settings → Variables and secrets, crear los secretos `ADMINS` (correos de los primeros administradores, separados por coma) y `CLAVE_INICIAL` (mínimo 10 caracteres). Cada administrador entra una vez con esa clave y crea la suya.
 
 ## Privacidad
 
